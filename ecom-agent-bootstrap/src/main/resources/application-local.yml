@@ -1,0 +1,13 @@
+# 仅本机学习配置。禁止直接以此配置公开部署。
+spring:
+  datasource:
+    url: jdbc:h2:file:./var/agent;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+  flyway:
+    locations: classpath:db/migration,classpath:db/local
+agent:
+  auth:
+    username: ${APP_USERNAME:analyst}
+    password: ${APP_PASSWORD:local-learning-only}
+

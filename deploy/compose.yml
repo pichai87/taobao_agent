@@ -1,0 +1,34 @@
+# 本机基础设施模板；当前机器无 Docker，尚未实测。
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ecom_agent
+      MYSQL_USER: agent_app
+      MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD:?Set MYSQL_APP_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD}
+      MYSQL_READER_PASSWORD: ${MYSQL_READER_PASSWORD:?Set MYSQL_READER_PASSWORD}
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/01-reader.sh:/docker-entrypoint-initdb.d/01-reader.sh:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+  redis:
+    # 扩展预留，应用当前不读写 Redis，不需要启动。
+    profiles: ["optional-redis"]
+    image: redis:7.4
+    ports:
+      - "127.0.0.1:6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+volumes:
+  mysql-data:
+  redis-data:
+

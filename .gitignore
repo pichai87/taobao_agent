@@ -1,0 +1,12 @@
+**/target/
+node_modules/
+dist/
+.idea/
+*.iml
+.env
+.env.*
+!.env.example
+var/
+*.log
+.tools/
+

@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:ecomtest;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+  flyway:
+    locations: classpath:db/migration,classpath:db/local
+agent:
+  auth:
+    username: analyst
+    password: test-password-only
+  model:
+    mode: offline
+logging:
+  level:
+    com.alibaba.cloud.ai.graph: WARN
+    com.ecom.application.RunService: ERROR
+
