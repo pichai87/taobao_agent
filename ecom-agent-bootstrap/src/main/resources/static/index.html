@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>电商经营分析 Agent</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">ECOMMERCE ANALYTICS</p>
+        <h1>电商经营分析 Agent</h1>
+      </div>
+      <div class="connection">
+        <span id="connection-dot" class="dot offline"></span>
+        <span id="connection-text">未登录</span>
+        <button id="logout-button" type="button" class="secondary" hidden>退出</button>
+      </div>
+    </header>
+
+    <section id="login-card" class="card login-card">
+      <div>
+        <p class="section-label">本机登录</p>
+        <h2>先连接分析服务</h2>
+        <p class="hint">在网页中查看数据库查询、Agent 步骤和分析结果，无需阅读终端输出。页面不将密码写入本地存储。</p>
+        <p class="hint">仅供本机学习；默认账号 analyst，密码见项目 README。</p>
+      </div>
+      <form id="login-form" class="login-form">
+        <label>账号<input id="username" autocomplete="username" value="analyst" required></label>
+        <label>密码<input id="password" type="password" autocomplete="current-password" required></label>
+        <button id="login-button" type="submit">连接服务</button>
+      </form>
+      <p id="login-error" class="error" aria-live="polite"></p>
+    </section>
+
+    <section id="workspace" hidden>
+      <section class="card">
+        <p class="section-label">如何验证 · 看这三项</p>
+        <div class="checks" aria-live="polite">
+          <p><strong>① 后端服务</strong><span id="backend-check">等待检查</span></p>
+          <p><strong>② 业务数据库</strong><span id="database-check">运行分析后检查</span></p>
+          <p><strong>③ Agent 工作流</strong><span id="workflow-check">运行分析后检查</span></p>
+        </div>
+        <p class="hint">以上只验证本次请求，不代表整个系统已完成生产验收。GMV = 成交总额；Agent = 按步骤调用工具、完成任务的程序。</p>
+      </section>
+      <section class="card">
+        <p class="section-label">模型连接 · 可选</p>
+        <h2>在网页配置阿里云百炼</h2>
+        <p class="hint">API Key = 接口密钥。只发送给本机后端及你选择的百炼官方地址，不写入数据库或浏览器本地存储。临时保留 30 分钟，服务重启后失效。</p>
+        <form id="model-form" class="run-form" autocomplete="off">
+          <label>百炼地域<select id="model-provider"><option value="BAILIAN_BEIJING">华北 2（北京）</option><option value="BAILIAN_SINGAPORE">新加坡</option></select></label>
+          <label>业务空间 ID（可选）<input id="model-workspace" maxlength="64" pattern="[a-zA-Z0-9-]*" placeholder="留空使用兼容域名"></label>
+          <label>模型名称<input id="model-name" value="qwen-plus" maxlength="85" pattern="qwen-[a-zA-Z0-9._-]+" required></label>
+          <label class="wide">API Key<input id="model-key" type="password" autocomplete="off" minlength="16" maxlength="256" required placeholder="请在这里输入，勿发到聊天中"></label>
+          <label class="check wide"><input id="model-consent" type="checkbox" required> 我同意分析问题和聚合查询结果发送到所选百炼地域，且调用可能产生费用。</label>
+          <button id="model-save" type="submit">保存临时配置（不调用模型）</button>
+          <button id="model-clear" type="button" class="secondary">清除密钥</button>
+        </form>
+        <p id="model-status" class="hint" aria-live="polite">尚未配置，仍可使用离线分析。</p>
+        <p id="model-error" class="error" aria-live="polite"></p>
+        <p class="hint">密钥与地域必须匹配；只支持百炼官方地址，不接受自定义代理 URL。模型需支持 Function Calling（函数／工具调用）。保存不代表密钥已验证，点击“开始分析”才发起模型请求。</p>
+      </section>
+
+      <details id="requirements-board" class="card requirements-board">
+        <summary>需求实现与验收表（按原文架构）</summary>
+        <p class="hint">实现勾选 ≠ 验收通过。分别记录代码完成度、验证程度和是否返工；备注需说明证据与不足，不要填写 API Key。窄屏可左右滚动表格查看全部列。</p>
+        <p class="hint">已核对微信原文架构章节，整理为 Java 适配验收清单，并单列项目补充需求；不是原系统完成度认证。
+          <a href="https://mp.weixin.qq.com/s/BpsscOnYq-DWsb_DrID8hA" target="_blank" rel="noopener noreferrer">微信原文</a> ·
+          <a href="https://www.aixq.cc/67378.html" target="_blank" rel="noopener noreferrer">对应转载正文</a>
+        </p>
+        <div class="history-controls">
+          <label>显示范围<select id="requirements-filter"><option value="all">全部需求</option><option value="unfinished">尚未全部实现</option><option value="rework">需要返工</option></select></label>
+          <button id="requirements-refresh" type="button" class="secondary">加载 / 刷新验收表</button>
+        </div>
+        <p id="requirements-summary" class="hint" aria-live="polite">展开后自动加载。修改后请逐行保存；记录仅属于当前账号，保存在本机数据库。</p>
+        <p id="requirements-error" class="error" aria-live="polite"></p>
+        <div class="table-scroll"><table class="requirements-table">
+          <caption>架构需求、实现情况与验收记录</caption>
+          <thead><tr><th scope="col">架构层 / 需求</th><th scope="col">验收要求与出处</th><th scope="col">实现程度</th><th scope="col">验证与返工</th><th scope="col">备注与保存</th></tr></thead>
+          <tbody id="requirements-rows"></tbody>
+        </table></div>
+      </details>
+
+      <section class="card request-card">
+        <div class="section-heading">
+          <div>
+            <p class="section-label">新建分析</p>
+            <h2>问一个经营问题</h2>
+          </div>
+          <span id="mode-badge" class="badge">等待连接</span>
+        </div>
+        <p class="hint" id="mode-description"></p>
+        <p class="hint">先用默认示例：2026-09-12 对比 2026-09-11，预期 GMV 为 ¥2,600 / ¥3,000，减少 ¥400。数据是合成的教学数据。</p>
+        <form id="run-form" class="run-form">
+          <label class="wide">执行方式<select id="execution-mode"><option value="default">服务器默认模式</option><option id="multi-mode-option" value="multi" disabled>多 Agent 专家协作（可能产生费用）</option><option id="tool-mode-option" value="tools" disabled>单 Agent 工具调用（对照模式，可能产生费用）</option></select></label>
+          <label class="wide">问题
+            <input id="question" maxlength="2000" value="GMV 为什么下降" required>
+          </label>
+          <label>目标日期<input id="date" type="date" value="2026-09-12" required></label>
+          <label>对比日期<input id="compare-date" type="date" value="2026-09-11"></label>
+          <label>指标
+            <select id="metric"><option value="GMV">GMV</option></select>
+          </label>
+          <label class="check"><input id="review-required" type="checkbox"> 提交后，确认才执行</label>
+          <button id="run-button" type="submit">开始分析</button>
+        </form>
+        <p id="run-error" class="error" aria-live="polite"></p>
+        <div class="history-controls">
+          <label>最近任务<select id="history"><option value="">选择任务查看进度或报告</option></select></label>
+          <button id="history-button" class="secondary" type="button">刷新任务列表</button>
+        </div>
+      </section>
+
+      <section id="status-card" class="card status-card" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="section-label">执行状态</p>
+            <h2 id="run-title">正在准备</h2>
+          </div>
+          <span id="status-badge" class="badge" aria-live="polite">等待执行</span>
+        </div>
+        <p id="status-detail" class="hint"></p>
+        <div id="run-actions"></div>
+        <section id="collaboration-card" class="collaboration-card" hidden>
+          <h3>专家协作（以本次实际事件为准）</h3>
+          <p class="hint">Supervisor = 总调度器；Query = 查询专家；Analysis = 分析专家。各专家拥有独立模型上下文和工具权限。不是每个问题都会调用全部专家。</p>
+          <ul id="agent-participants"></ul>
+          <ol id="agent-handoffs"></ol>
+        </section>
+        <details class="trace" open>
+          <summary>执行轨迹（每一步实际做了什么）</summary>
+          <ol id="events" class="events"></ol>
+        </details>
+      </section>
+
+      <section id="report" hidden>
+        <div id="metrics-grid" class="metrics-grid">
+          <article class="metric-card">
+            <p>目标日 GMV</p><strong id="current-gmv">-</strong><span id="current-date">-</span>
+          </article>
+          <article class="metric-card">
+            <p>对比日 GMV</p><strong id="previous-gmv">-</strong><span id="previous-date">-</span>
+          </article>
+          <article class="metric-card">
+            <p>GMV 变化</p><strong id="delta-gmv">-</strong><span id="change-rate">-</span>
+          </article>
+        </div>
+        <section class="card report-card">
+          <p class="section-label">分析结论</p>
+          <h2 id="report-title"></h2>
+          <p id="conclusion" class="conclusion"></p>
+          <p id="limitation" class="hint"></p>
+          <div id="model-answer-card" hidden>
+            <h3>模型解读（需核对，不替代上方计算结果）</h3>
+            <p id="model-answer" class="model-answer"></p>
+          </div>
+        </section>
+          <section id="contribution-card" class="card">
+            <p class="section-label">品类贡献</p>
+            <p class="hint">贡献 = 各品类 GMV 的变化；这不等于找到了变化的业务原因。</p>
+            <div id="contributions" class="contributions"></div>
+          </section>
+          <section id="rows-card" class="card">
+            <p class="section-label">查询明细</p>
+            <div class="table-scroll"><table>
+              <thead><tr><th>日期</th><th>品类</th><th>GMV</th><th>订单数</th><th>访客数</th></tr></thead>
+              <tbody id="rows"></tbody>
+            </table></div>
+          </section>
+        <details class="card">
+          <summary>查看数据口径与 SQL 模板</summary>
+          <pre id="sql"></pre>
+          <ul id="evidence" class="evidence"></ul>
+        </details>
+      </section>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

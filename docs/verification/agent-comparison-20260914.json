@@ -1,0 +1,126 @@
+{
+  "generatedAt" : "2026-09-14T08:49:36.790131200Z",
+  "method" : "DETERMINISTIC_PROTOCOL_FIXTURE_REAL_H2",
+  "realProviderCalled" : false,
+  "cases" : [ {
+    "sameStructuredResult" : true,
+    "multi" : {
+      "queryEvents" : 1,
+      "maxToolsPerRequest" : 2,
+      "serializedInputBytes" : 7016,
+      "handoffDispatches" : 1,
+      "modelRequests" : 4,
+      "toolMenuEntriesAcrossRequests" : 7
+    },
+    "single" : {
+      "queryEvents" : 1,
+      "maxToolsPerRequest" : 6,
+      "serializedInputBytes" : 14164,
+      "handoffDispatches" : 0,
+      "modelRequests" : 4,
+      "toolMenuEntriesAcrossRequests" : 24
+    },
+    "case" : "QUERY"
+  }, {
+    "sameStructuredResult" : true,
+    "multi" : {
+      "queryEvents" : 2,
+      "maxToolsPerRequest" : 2,
+      "serializedInputBytes" : 16189,
+      "handoffDispatches" : 2,
+      "modelRequests" : 7,
+      "toolMenuEntriesAcrossRequests" : 13
+    },
+    "single" : {
+      "queryEvents" : 2,
+      "maxToolsPerRequest" : 6,
+      "serializedInputBytes" : 15236,
+      "handoffDispatches" : 0,
+      "modelRequests" : 4,
+      "toolMenuEntriesAcrossRequests" : 24
+    },
+    "case" : "COMPARE"
+  }, {
+    "sameStructuredResult" : true,
+    "multi" : {
+      "queryEvents" : 2,
+      "maxToolsPerRequest" : 2,
+      "serializedInputBytes" : 16237,
+      "handoffDispatches" : 2,
+      "modelRequests" : 7,
+      "toolMenuEntriesAcrossRequests" : 13
+    },
+    "single" : {
+      "queryEvents" : 2,
+      "maxToolsPerRequest" : 6,
+      "serializedInputBytes" : 15272,
+      "handoffDispatches" : 0,
+      "modelRequests" : 4,
+      "toolMenuEntriesAcrossRequests" : 24
+    },
+    "case" : "ATTRIBUTION"
+  }, {
+    "sameStructuredResult" : true,
+    "multi" : {
+      "queryEvents" : 1,
+      "maxToolsPerRequest" : 2,
+      "serializedInputBytes" : 21461,
+      "handoffDispatches" : 2,
+      "modelRequests" : 7,
+      "toolMenuEntriesAcrossRequests" : 13
+    },
+    "single" : {
+      "queryEvents" : 1,
+      "maxToolsPerRequest" : 6,
+      "serializedInputBytes" : 19184,
+      "handoffDispatches" : 0,
+      "modelRequests" : 4,
+      "toolMenuEntriesAcrossRequests" : 24
+    },
+    "case" : "TREND"
+  }, {
+    "sameStructuredResult" : true,
+    "multi" : {
+      "queryEvents" : 1,
+      "maxToolsPerRequest" : 2,
+      "serializedInputBytes" : 14993,
+      "handoffDispatches" : 2,
+      "modelRequests" : 7,
+      "toolMenuEntriesAcrossRequests" : 13
+    },
+    "single" : {
+      "queryEvents" : 1,
+      "maxToolsPerRequest" : 6,
+      "serializedInputBytes" : 14194,
+      "handoffDispatches" : 0,
+      "modelRequests" : 4,
+      "toolMenuEntriesAcrossRequests" : 24
+    },
+    "case" : "TOP_N"
+  }, {
+    "sameStructuredResult" : true,
+    "multi" : {
+      "queryEvents" : 0,
+      "maxToolsPerRequest" : 1,
+      "serializedInputBytes" : 3934,
+      "handoffDispatches" : 1,
+      "modelRequests" : 3,
+      "toolMenuEntriesAcrossRequests" : 3
+    },
+    "single" : {
+      "queryEvents" : 0,
+      "maxToolsPerRequest" : 6,
+      "serializedInputBytes" : 5787,
+      "handoffDispatches" : 0,
+      "modelRequests" : 2,
+      "toolMenuEntriesAcrossRequests" : 12
+    },
+    "case" : "DEFINITION"
+  } ],
+  "contextIsolation" : {
+    "analysisSeesPrivateQueryProse" : false,
+    "singleSeesPrivateQueryProse" : true,
+    "limitation" : "Only raw expert prose is isolated. Structured evidence may still contain untrusted text; this is not proof against all prompt injection."
+  },
+  "conclusion" : "Both pass the six fixed numeric/definition fixtures. Multi-agent narrows per-expert tools and isolates raw query dialogue, but usually adds model round trips. Real-model accuracy, tokens, cost and latency are NOT measured."
+}

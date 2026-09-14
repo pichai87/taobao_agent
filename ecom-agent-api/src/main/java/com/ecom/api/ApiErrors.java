@@ -12,8 +12,8 @@ public class ApiErrors {
     @ExceptionHandler(BusinessException.class)
     ResponseEntity<Map<String,String>> business(BusinessException error) {
         String code=error.code();
-        HttpStatus status=code.equals("RUN_NOT_FOUND")?HttpStatus.NOT_FOUND:
-            code.equals("INVALID_RUN_STATE") || code.equals("IDEMPOTENCY_CONFLICT")?HttpStatus.CONFLICT:HttpStatus.BAD_REQUEST;
+        HttpStatus status=code.equals("RUN_NOT_FOUND") || code.equals("REQUIREMENT_NOT_FOUND")?HttpStatus.NOT_FOUND:
+            code.equals("INVALID_RUN_STATE") || code.equals("IDEMPOTENCY_CONFLICT") || code.equals("REVIEW_VERSION_CONFLICT")?HttpStatus.CONFLICT:HttpStatus.BAD_REQUEST;
         return ResponseEntity.status(status).body(Map.of("code",code));
     }
     @ExceptionHandler({HttpMessageNotReadableException.class,MissingRequestHeaderException.class})
@@ -21,4 +21,3 @@ public class ApiErrors {
         return ResponseEntity.badRequest().body(Map.of("code","INVALID_REQUEST"));
     }
 }
-

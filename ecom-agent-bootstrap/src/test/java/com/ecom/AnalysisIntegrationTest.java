@@ -93,6 +93,18 @@ class AnalysisIntegrationTest {
             .content(json.writeValueAsString(request("GMV",true))))
             .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("WAITING_FOR_REVIEW"));
     }
+    @Test void consoleIsPublicButApiStillRequiresAuthentication() throws Exception {
+        mvc.perform(get("/")).andExpect(status().isOk()).andExpect(forwardedUrl("index.html"));
+        mvc.perform(get("/index.html")).andExpect(status().isOk())
+            .andExpect(result -> assertThat(result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8))
+                .contains("电商经营分析 Agent"));
+        mvc.perform(get("/app.js")).andExpect(status().isOk());
+        mvc.perform(get("/app.css")).andExpect(status().isOk());
+        mvc.perform(get("/api/capabilities")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/csrf").header("X-Requested-With", "XMLHttpRequest")
+            .with(httpBasic("analyst", "wrong-password")))
+            .andExpect(status().isUnauthorized()).andExpect(header().doesNotExist("WWW-Authenticate"));
+    }
     @Test void noDataIsNotInvented() {
         Request q=new Request("GMV",LocalDate.of(2000,1,1),null,"GMV",false);
         Run a=completed(runs.submit("alice",UUID.randomUUID().toString(),q));
@@ -136,4 +148,3 @@ class AnalysisIntegrationTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(5));
     }
 }
-

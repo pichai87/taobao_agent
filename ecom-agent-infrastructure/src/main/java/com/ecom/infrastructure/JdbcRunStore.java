@@ -19,7 +19,13 @@ public class JdbcRunStore implements RunStore {
     private final ObjectMapper json;
     public JdbcRunStore(JdbcTemplate db, ObjectMapper json) { this.db=db; this.json=json; }
     public Run create(String owner, String key, Request request, String mode) {
-        String body=encode(request), hash=hash(body), id=UUID.randomUUID().toString();
+        String body=encode(request);
+        // 兼容新增可选模型字段之前的离线幂等键，不因 null 字段改变历史请求的 hash。
+        com.fasterxml.jackson.databind.node.ObjectNode node=json.valueToTree(request);
+        if(request.modelSessionId()==null) node.remove("modelSessionId");
+        if(request.executionMode()==null) node.remove("executionMode");
+        body=encode(node);
+        String hash=hash(body), id=UUID.randomUUID().toString();
         Status initial=request.reviewRequired()?Status.WAITING_FOR_REVIEW:Status.QUEUED;
         try {
             db.update("INSERT INTO agent_run(id,owner,request_key,request_json,request_hash,mode,status,snapshot_json) VALUES(?,?,?,?,?,?,?,?)",

@@ -18,7 +18,10 @@ public class RunController {
         return Map.of("headerName",token.getHeaderName(),"token",token.getToken());
     }
     @GetMapping("/capabilities") public Map<String,Object> capabilities() {
-        return Map.of("mode",planner.mode(),"metric","GMV","intents",Intent.values(),"multiInstance",false,"vectorRag",false);
+        return Map.of("mode",planner.mode(),"metric","GMV","intents",Intent.values(),"multiInstance",false,"vectorRag",false,
+            "toolCalling",true,"maxModelRounds",8,"maxToolCalls",12,
+            "multiAgent",Map.of("mode","LLM_MULTI_AGENT","maxModelRounds",16,"maxToolCalls",24,"maxHandoffs",6,
+                "experts",List.of("IntentAgent","Supervisor","QueryAgent","AnalysisAgent","OpsAgent","OtherAgent")));
     }
     @GetMapping("/metrics") public List<Metric> metrics() {return knowledge.metrics();}
     @PostMapping("/runs") public Run submit(Principal user,@RequestHeader("Idempotency-Key") String key,@RequestBody Request request) {
@@ -33,4 +36,3 @@ public class RunController {
     @PostMapping("/runs/{id}/resume") public Run resume(Principal user,@PathVariable String id) {return runs.resume(user.getName(),id);}
     @PostMapping("/runs/{id}/cancel") public Run cancel(Principal user,@PathVariable String id) {return runs.cancel(user.getName(),id);}
 }
-

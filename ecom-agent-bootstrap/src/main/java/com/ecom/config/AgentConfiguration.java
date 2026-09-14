@@ -1,7 +1,13 @@
 package com.ecom.config;
 
 import com.ecom.agent.AnalysisWorkflow;
+import com.ecom.agent.ToolCallingWorkflow;
+import com.ecom.agent.MultiAgentWorkflow;
+import com.ecom.domain.ModelRuntime;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ecom.application.RunService;
+import com.ecom.application.RequirementService;
+import com.ecom.domain.Requirements;
 import com.ecom.domain.Ports.*;
 import com.ecom.infrastructure.*;
 import com.ecom.knowledge.RulePlanner;
@@ -64,8 +70,23 @@ public class AgentConfiguration {
         return new AnalysisWorkflow(planner,knowledge,reader,store);
     }
     @Bean @DependsOn("flywayInitializer")
-    RunUseCases runs(RunStore store,Planner planner,AnalysisWorkflow workflow,ExecutorService agentExecutor) {
-        return new RunService(store,planner,workflow,agentExecutor);
+    RunUseCases runs(RunStore store,Planner planner,AnalysisWorkflow workflow,ExecutorService agentExecutor,
+                     ToolCallingWorkflow toolWorkflow,ModelRuntime.Sessions sessions,MultiAgentWorkflow multiWorkflow) {
+        return new RunService(store,planner,workflow,agentExecutor,toolWorkflow,sessions,multiWorkflow);
+    }
+    @Bean(destroyMethod="close") MemoryModelSessions modelSessions() {return new MemoryModelSessions();}
+    @Bean ModelRuntime.Gateway modelGateway(MemoryModelSessions sessions,ObjectMapper json) {return new BailianToolGateway(sessions,json);}
+    @Bean ToolCallingWorkflow toolWorkflow(ModelRuntime.Gateway gateway,ModelRuntime.Sessions sessions,
+            Knowledge knowledge,AnalyticsReader reader,RunStore store,ObjectMapper json) {
+        return new ToolCallingWorkflow(gateway,sessions,knowledge,reader,store,json);
+    }
+    @Bean Requirements.Board requirementBoard(Requirements.Store store,ObjectMapper json) throws java.io.IOException {
+        try(var input=new org.springframework.core.io.ClassPathResource("requirements/catalog.json").getInputStream()) {
+            return new RequirementService(java.util.Arrays.asList(json.readValue(input,Requirements.Definition[].class)),store);
+        }
+    }
+    @Bean MultiAgentWorkflow multiWorkflow(ModelRuntime.Gateway gateway,ModelRuntime.Sessions sessions,
+            Knowledge knowledge,AnalyticsReader reader,RunStore store,ObjectMapper json) {
+        return new MultiAgentWorkflow(gateway,sessions,knowledge,reader,store,json);
     }
 }
-

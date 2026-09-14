@@ -20,6 +20,7 @@ public class SecurityConfiguration {
     @Bean SecurityFilterChain security(HttpSecurity http) throws Exception {
         return http.authorizeHttpRequests(auth->auth
                 .requestMatchers("/actuator/health").permitAll()
+                .requestMatchers("/", "/index.html", "/app.css", "/app.js").permitAll()
                 .requestMatchers("/actuator/**").hasRole("ADMIN")
                 .requestMatchers("/api/**").hasRole("ANALYST")
                 .anyRequest().denyAll())
@@ -28,4 +29,3 @@ public class SecurityConfiguration {
             .csrf(withDefaults()).build();
     }
 }
-
