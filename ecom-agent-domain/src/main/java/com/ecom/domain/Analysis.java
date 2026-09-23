@@ -25,7 +25,11 @@ public final class Analysis {
     public record Summary(BigDecimal gmv, long orders, long uv, BigDecimal cvr, BigDecimal aov) {}
     public record Contribution(String dimension, BigDecimal delta) {}
     public record Result(Summary current, Summary previous, BigDecimal changeRate,
-                         List<Contribution> contributions, List<Daily> rows) {}
+                         List<Contribution> contributions, List<Daily> rows, Diagnosis.Tree diagnosis) {
+        public Result(Summary current,Summary previous,BigDecimal changeRate,List<Contribution> contributions,List<Daily> rows) {
+            this(current,previous,changeRate,contributions,rows,null);
+        }
+    }
     public record Report(String title, String conclusion, String limitation, Result data,
                          List<Evidence> evidence, String sql, String mode, String modelAnswer) {
         public Report(String title,String conclusion,String limitation,Result data,List<Evidence> evidence,String sql,String mode) {

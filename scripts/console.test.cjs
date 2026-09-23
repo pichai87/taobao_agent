@@ -9,6 +9,9 @@ const { webcrypto } = require('node:crypto');
 const root = path.join(__dirname, '../ecom-agent-bootstrap/src/main/resources/static');
 const source = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+// Keep additional browser protocol regression tests included in the existing CI entry point.
+require('./stream.test.cjs');
+require('./stream.review.test.cjs');
 
 class Element {
   constructor() { this.children = []; this.handlers = {}; this.value = ''; this.textContent = ''; this.hidden = false; }

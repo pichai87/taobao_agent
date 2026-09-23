@@ -41,10 +41,13 @@ public class EventStreamController {
             try {
                 // 先读终态，再读事件，避免终态已经可见但最后一批事件尚未读取。
                 Run run=runs.get(user.getName(),id);
-                for(Event event:runs.events(user.getName(),id,cursor.get())) {
+                var page=runs.events(user.getName(),id,cursor.get());
+                for(Event event:page) {
                     emitter.send(SseEmitter.event().id(Long.toString(event.sequence())).name("node").data(event));
                     cursor.set(event.sequence());
                 }
+                // 一页恰好装满时先继续排空；否则客户端看见终态会中断并漏掉后页。
+                if(page.size()>=1000) return;
                 emitter.send(SseEmitter.event().name("status").data(run.status()));
                 if(Set.of(Status.SUCCEEDED,Status.FAILED,Status.CANCELLED,Status.INTERRUPTED,Status.WAITING_FOR_REVIEW).contains(run.status())) {
                     release.run();emitter.complete();
@@ -57,4 +60,3 @@ public class EventStreamController {
     }
     @PreDestroy public void close() {scheduler.shutdownNow();}
 }
-

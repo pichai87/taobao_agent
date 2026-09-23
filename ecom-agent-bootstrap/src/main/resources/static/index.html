@@ -84,6 +84,37 @@
         </table></div>
       </details>
 
+      <details class="card">
+        <summary>语义查询与知识工作台（无模型费用）</summary>
+        <p class="hint">MDL = 语义模型；先选择指标和维度，再编译参数化 SQL。这里是本地 Java 实现，不是已接入 WrenAI / 淘宝内网。指标可以查看 GMV、订单、UV、转化率和客单价。</p>
+        <form id="semantic-form" class="run-form">
+          <label>指标<select id="semantic-metric"><option>GMV</option><option>ORDERS</option><option>UV</option><option>CVR</option><option>AOV</option></select></label>
+          <label>维度<select id="semantic-dimension"><option value="category">品类</option><option value="stat_date">日期</option><option value="">总计</option></select></label>
+          <label>开始日期<input id="semantic-start" type="date" value="2026-09-12" required></label>
+          <label>结束日期<input id="semantic-end" type="date" value="2026-09-12" required></label>
+          <button type="submit">预检并查询</button>
+        </form>
+        <p id="semantic-status" class="hint" aria-live="polite"></p>
+        <pre id="semantic-result"></pre>
+        <details><summary>注册一个受控指标</summary>
+          <p class="hint">当前仅支持 SUM（求和）和 RATIO（比值），来源只限已有视图字段。不能粘贴 SQL，也不能覆盖已有指标。</p>
+          <form id="metric-register-form" class="run-form">
+            <label>代码<input id="metric-code" pattern="[A-Z][A-Z0-9_]{0,31}" placeholder="REVENUE_PER_UV" required></label>
+            <label>名称<input id="metric-name" maxlength="64" required></label>
+            <label>公式<select id="metric-formula"><option>RATIO</option><option>SUM</option></select></label>
+            <label>分子 / 求和字段<select id="metric-numerator"><option>gmv</option><option>paid_orders</option><option>uv</option></select></label>
+            <label>分母<select id="metric-denominator"><option>uv</option><option>paid_orders</option><option>gmv</option></select></label>
+            <label>单位<input id="metric-unit" maxlength="32" value="元/人" required></label>
+            <label class="wide">业务定义<input id="metric-description" maxlength="2000" required></label>
+            <button type="submit">校验并注册</button>
+          </form>
+        </details>
+        <details><summary>个人学习 / 会话摘要</summary>
+          <p class="hint">L6 = 会话记忆层。只有明确点击保存才写入当前账号摘要；它不作为数据库事实，不要填写密钥或个人敏感信息。</p>
+          <form id="memory-form"><label>摘要<textarea id="memory-summary" maxlength="1000"></textarea></label><button type="submit">保存摘要</button><button id="memory-load" type="button">读取摘要</button></form>
+        </details>
+      </details>
+
       <section class="card request-card">
         <div class="section-heading">
           <div>
@@ -163,6 +194,12 @@
             <p class="hint">贡献 = 各品类 GMV 的变化；这不等于找到了变化的业务原因。</p>
             <div id="contributions" class="contributions"></div>
           </section>
+          <section id="diagnosis-card" class="card" hidden>
+            <p class="section-label">递归诊断树 · 数值贡献，不等于业务原因</p>
+            <p class="hint">Shapley = 平均不同替换顺序的边际贡献。先拆 UV / CVR / AOV，再按品类下钻；金额单位为元。停止原因和未展开金额会保留。</p>
+            <div id="diagnosis-tree"></div>
+            <ul id="diagnosis-limits" class="hint"></ul>
+          </section>
           <section id="rows-card" class="card">
             <p class="section-label">查询明细</p>
             <div class="table-scroll"><table>
@@ -178,6 +215,7 @@
       </section>
     </section>
   </main>
+  <script src="/stream.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

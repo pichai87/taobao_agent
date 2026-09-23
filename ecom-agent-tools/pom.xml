@@ -4,7 +4,7 @@
   <parent><groupId>com.ecom</groupId><artifactId>ecom-data-analysis-agent</artifactId><version>0.1.0-SNAPSHOT</version></parent>
   <artifactId>ecom-agent-tools</artifactId>
   <dependencies><dependency><groupId>com.ecom</groupId><artifactId>ecom-agent-domain</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>com.github.jsqlparser</groupId><artifactId>jsqlparser</artifactId><version>5.3</version></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-jdbc</artifactId></dependency></dependencies>
 
 </project>
-

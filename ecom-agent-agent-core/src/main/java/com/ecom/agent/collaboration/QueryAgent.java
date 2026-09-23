@@ -42,19 +42,19 @@ public final class QueryAgent {
                 try {
                     Object output;
                     switch(call.name()) {
-                        case "explain_metric" -> {AgentRuntime.empty(call);evidence=knowledge.recall("GMV 指标口径","GMV");output=evidence;}
+                        case "explain_metric" -> {AgentRuntime.empty(call);evidence=knowledge.context("GMV 指标口径","GMV");output=evidence;}
                         case "query_daily" -> {
                             String period=AgentRuntime.choice(call,"period",scope==Scope.BOTH?List.of("current","previous"):List.of("current"));
                             if(evidence.isEmpty()) throw new BusinessException("TOOL_PREREQUISITE");
                             boolean prior=period.equals("previous");var result=reader.query(rt.run.id(),prior?rt.run.request().compareDate():rt.run.request().date());
                             if(result.isEmpty()) throw new BusinessException(prior?"NO_COMPARISON_DATA":"NO_DATA");
-                            if(prior) previous=List.copyOf(result);else rows=List.copyOf(result);sql.add(ApprovedSql.DAILY);output=result;
+                            if(prior) previous=List.copyOf(result);else rows=List.copyOf(result);sql.add(reader.generatedSql()==null?ApprovedSql.DAILY:reader.generatedSql());output=result;
                             rt.event("query","SUCCEEDED",ACTOR+" 查询 "+period+"；返回 "+result.size()+" 行");
                         }
                         case "query_trend" -> {
                             AgentRuntime.empty(call);if(evidence.isEmpty()) throw new BusinessException("TOOL_PREREQUISITE");
                             rows=List.copyOf(reader.trend(rt.run.id(),rt.run.request().date().minusDays(6),rt.run.request().date()));
-                            if(rows.isEmpty()) throw new BusinessException("NO_DATA");sql.add(ApprovedSql.TREND);output=rows;
+                            if(rows.isEmpty()) throw new BusinessException("NO_DATA");sql.add(reader.generatedSql()==null?ApprovedSql.TREND:reader.generatedSql());output=rows;
                             rt.event("query","SUCCEEDED",ACTOR+" 查询七天；返回 "+rows.size()+" 行");
                         }
                         default -> throw new BusinessException("AGENT_TOOL_FORBIDDEN");
