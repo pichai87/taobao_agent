@@ -46,7 +46,7 @@ public final class AnalysisAgent {
                         List<Daily> current=packet.rows().stream().filter(r->r.date().equals(rt.run.request().date())).toList();
                         result=calculator.calculate(current,packet.previous());
                         if(goal==Goal.TREND) result=new Result(result.current(),null,null,List.of(),packet.rows());
-                        if(goal==Goal.TOP_N) result=new Result(result.current(),null,null,List.of(),current.stream().sorted(Comparator.comparing(Daily::gmv).reversed()).toList());
+                        if(goal==Goal.TOP_N) result=new Result(result.current(),null,null,List.of(),com.ecom.tools.QuestionConstraints.limit(rt.run.request().question(),current.stream().sorted(Comparator.comparing(Daily::gmv).reversed()).toList()));
                         rt.event("calculate","SUCCEEDED",ACTOR+" 使用数据包 "+packet.id()+" 执行 "+call.name());rt.result(ACTOR,messages,call,result);
                     }
                 } catch(BusinessException error) {

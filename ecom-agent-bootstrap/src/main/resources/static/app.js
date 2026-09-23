@@ -2,7 +2,7 @@
   "use strict";
   // 凭据只留在页面内存，不写入 URL、日志或本地存储。
   const state = { auth: "", csrf: "", csrfHeader: "", runId: "", timer: null,
-    generation: 0, events: [], busy: false, submission: null, modelSession: null, defaultMode: "OFFLINE_RULES" };
+    generation: 0, events: [], busy: false, submission: null, modelSession: null, streamAbort: null, defaultMode: "OFFLINE_RULES" };
   const $ = id => document.getElementById(id);
   const statuses = { QUEUED: "排队中", RUNNING: "执行中", WAITING_FOR_REVIEW: "等待你确认",
     SUCCEEDED: "分析完成", FAILED: "分析失败", CANCELLED: "已取消", INTERRUPTED: "执行中断" };
@@ -16,6 +16,15 @@
     TOP_N: "品类排名", TREND: "七日趋势", DEFINITION: "指标定义" };
   const categories = { appliances: "家电", beauty: "美妆", food: "食品" };
   const errors = {
+    QUESTION_METRIC_NOT_SUPPORTED: "当前 Agent 报告主链只分析 GMV。订单数、UV、CVR、AOV 请在语义查询工作台查看，不能用 GMV 冒充回答。",
+    INVALID_TOP_N: "排名数量无法确定或超出 1 到 100，请明确写 Top 5 或前五名。",
+    METRIC_OVERFLOW: "指标数量超过当前数值类型范围，已停止计算以防止溢出。",
+    DATA_COVERAGE_INCOMPLETE: "部分订单缺少流量记录，不能安全计算完整指标，请补齐数据。",
+    QUERY_RESULT_LIMIT_EXCEEDED: "查询结果超过允许行数，请缩小日期或品类范围，系统没有返回截断的总额。",
+    UV_CROSS_DATE_AGGREGATION: "跨天 UV 不能直接相加。请选择日期维度，或只查一天。",
+    INVALID_SEMANTIC_PLAN: "指标、维度、日期或查询行数不符合语义模型约束。",
+    INVALID_METRIC_DEFINITION: "指标定义不合法，请使用已有字段和允许的公式。",
+    METRIC_ALREADY_EXISTS: "指标代码已存在，请换一个代码，不能覆盖已有口径。",
     INVALID_EXECUTION_MODE: "不支持这种执行方式，请选择页面列出的模式。",
     INTENT_ROUTE_CONFLICT: "模型路由与问题中明确的数据要求冲突，已停止，请明确问题后重试。",
     AGENT_TOOL_FORBIDDEN: "专家请求了职责范围以外的工具，后端已拒绝。",
@@ -75,7 +84,7 @@
     const selected = $("execution-mode").value === "multi" ? "LLM_MULTI_AGENT" : $("execution-mode").value === "tools" ? "LLM_TOOL_CALLING" : state.defaultMode;
     $("mode-badge").textContent = mode(selected);
     $("mode-description").textContent = selected === "LLM_MULTI_AGENT" ?
-      "意图识别 → 总调度器 → 独立专家；分析专家向查询专家申请数据，再计算和解释。全局最多 16 轮模型、24 次工具、6 次派发。简单问题可能比单 Agent 更慢、更贵，不等于递归业务归因已实现。" : selected === "LLM_TOOL_CALLING" ?
+      "意图识别 → 总调度器 → 独立专家；分析专家向查询专家申请数据，再计算和解释。全局最多 16 轮模型、24 次工具、6 次派发。含受限 GMV 因子诊断树；简单问题可能比单 Agent 更慢、更贵。" : selected === "LLM_TOOL_CALLING" ?
       "由模型决定工具、读取结果后继续决策。最多 8 轮模型请求、12 次工具请求；只读查询，不能执行任意 SQL。模型解释需核对。" :
       selected === "OFFLINE_RULES" ? "当前用规则识别问题，真实执行数据库查询和六步工作流，不调用大模型。" :
       "当前服务器模式只用模型分类，工具流程固定；选择模型工具调用模式才会自主选择工具。";
@@ -116,6 +125,7 @@
     return response.json();
   };
   const stopWatching = () => {
+    state.streamAbort?.abort(); state.streamAbort = null;
     clearTimeout(state.timer);
     state.timer = null;
     return ++state.generation;
@@ -163,6 +173,18 @@
     $("report").hidden = !report;
     if (!report) return;
     const data = report.data;
+    $("diagnosis-card").hidden = !data?.diagnosis;
+    $("diagnosis-tree").replaceChildren(); $("diagnosis-limits").replaceChildren();
+    if (data?.diagnosis) {
+      const renderNode = node => {
+        const item = document.createElement("li");
+        item.textContent = node.label + "：" + money(node.contribution) + "；停止=" + node.stopReason + "；未展开=" + money(node.remainingContribution);
+        if (node.children?.length) { const list = document.createElement("ul"); node.children.forEach(child => list.append(renderNode(child))); item.append(list); }
+        return item;
+      };
+      const tree = document.createElement("ul"); tree.append(renderNode(data.diagnosis.root)); $("diagnosis-tree").append(tree);
+      data.diagnosis.limitations.forEach(text => { const item = document.createElement("li"); item.textContent = text; $("diagnosis-limits").append(item); });
+    }
     ["metrics-grid", "contribution-card", "rows-card"].forEach(id => { $(id).hidden = !data; });
     $("report-title").textContent = report.title.replace(/\b(QUERY|COMPARE|ATTRIBUTION|TOP_N|TREND|DEFINITION)\b/g, value => intents[value]);
     $("conclusion").textContent = report.conclusion;
@@ -248,10 +270,13 @@
     const id = state.runId;
     try {
       const run = await api("/api/runs/" + id);
-      const after = state.events.at(-1)?.sequence || 0;
-      const events = await api("/api/runs/" + id + "/events?after=" + after);
-      if (generation !== state.generation) return;
-      state.events.push(...events);
+      let events;
+      do {
+        const after = state.events.at(-1)?.sequence || 0;
+        events = await api("/api/runs/" + id + "/events?after=" + after);
+        if (generation !== state.generation) return;
+        state.events.push(...events);
+      } while(events.length>=1000);
       $("status-card").hidden = false;
       $("run-title").textContent = run.request.question;
       $("status-badge").textContent = statuses[run.status] || run.status;
@@ -259,7 +284,10 @@
         (run.errorCode ? " · " + message(run.errorCode) : "");
       $("run-error").textContent = "";
       renderEvents(); renderChecks(run); renderActions(run); renderReport(run);
-      if (active(run)) state.timer = setTimeout(() => pollRun(generation), 800);
+      if (active(run)) {
+        if (globalThis.EcomStream) startStream(generation);
+        else state.timer = setTimeout(() => pollRun(generation), 800);
+      }
       else await refreshHistory();
     } catch (error) {
       if (generation !== state.generation) return;
@@ -267,6 +295,28 @@
       $("run-actions").replaceChildren();
       actionButton("重试读取进度", async () => { await pollRun(stopWatching()); });
     }
+  };
+  const startStream = generation => {
+    const controller = new AbortController(); state.streamAbort = controller;
+    const timeout = setTimeout(() => controller.abort(), 70000);
+    const after = state.events.at(-1)?.sequence || 0;
+    let terminal = false;
+    globalThis.EcomStream.connect({ url: "/api/runs/" + state.runId + "/stream?after=" + after,
+      auth: state.auth, signal: controller.signal, onEvent: event => {
+        if (generation !== state.generation) return;
+        if (event.name === "node" && Number.isSafeInteger(event.data.sequence) && event.data.sequence > (state.events.at(-1)?.sequence || 0)) {
+          state.events.push(event.data); renderEvents();
+        } else if (event.name === "status") {
+          $("status-badge").textContent = statuses[event.data] || event.data;
+          if (!["RUNNING", "QUEUED"].includes(event.data)) { terminal = true; controller.abort(); }
+        }
+      }
+    }).catch(() => { /* 网络/代理不支持时保留游标，退回状态读取后重连。 */ }).finally(() => {
+      clearTimeout(timeout);
+      if (generation !== state.generation) return;
+      state.streamAbort = null;
+      state.timer = setTimeout(() => pollRun(generation), terminal ? 0 : 1500);
+    });
   };
   const watch = async id => {
     const generation = stopWatching();
@@ -276,6 +326,36 @@
     $("workflow-check").textContent = "正在读取任务进度";
     await pollRun(generation);
   };
+  const workbenchAction = async action => {
+    $("semantic-status").textContent = "处理中…";
+    try { await action(); $("semantic-status").textContent = "完成。查询结果和限制如下；没有调用大模型。"; }
+    catch (error) { $("semantic-status").textContent = message(error.message); }
+  };
+  const postJson = (path, data) => api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+  $("semantic-form").addEventListener("submit", event => {
+    event.preventDefault(); return workbenchAction(async () => {
+      const query = { metrics: [$("semantic-metric").value], dimensions: $("semantic-dimension").value ? [$("semantic-dimension").value] : [],
+        start: $("semantic-start").value, end: $("semantic-end").value, category: null, limit: 500 };
+      const plan = await postJson("/api/semantic/plan", query);
+      const rows = await postJson("/api/semantic/query", query);
+      const knowledge = await api("/api/semantic/knowledge?metric=" + encodeURIComponent(query.metrics[0]) + "&question=口径");
+      $("semantic-result").textContent = "null 表示未知 / 分母为零 / 覆盖不完整，不代表 0。\n" + JSON.stringify({ plan, rows, knowledge }, null, 2);
+    });
+  });
+  $("metric-register-form").addEventListener("submit", event => {
+    event.preventDefault(); return workbenchAction(async () => {
+      const metric = await postJson("/api/semantic/metrics", { code: $("metric-code").value, name: $("metric-name").value,
+        formula: $("metric-formula").value, numerator: $("metric-numerator").value,
+        denominator: $("metric-formula").value === "RATIO" ? $("metric-denominator").value : null,
+        unit: $("metric-unit").value, description: $("metric-description").value });
+      $("semantic-metric").append(new Option(metric.code, metric.code));
+      $("semantic-result").textContent = JSON.stringify(metric, null, 2);
+    });
+  });
+  $("memory-form").addEventListener("submit", event => {
+    event.preventDefault(); return workbenchAction(() => postJson("/api/semantic/memory", { summary: $("memory-summary").value }));
+  });
+  $("memory-load").onclick = () => workbenchAction(async () => { $("memory-summary").value = (await api("/api/semantic/memory")).summary; });
   // Per-account acceptance records. Server versions prevent silent cross-tab overwrites.
   const requirementRows = new Map();
   let requirementsLoaded = false, requirementsLoading = false;

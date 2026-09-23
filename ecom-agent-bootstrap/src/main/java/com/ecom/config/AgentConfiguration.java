@@ -43,8 +43,8 @@ public class AgentConfiguration {
         c.setMaximumPoolSize(4); c.setReadOnly(true); c.setPoolName("analytics-reader"); return new HikariDataSource(c);
     }
     @Bean @Primary JdbcTemplate jdbcTemplate(@Qualifier("dataSource") DataSource ds) {return new JdbcTemplate(ds);}
-    @Bean AnalyticsReader analyticsReader(@Qualifier("readerDataSource") DataSource ds,JdbcTemplate db) {
-        return new JdbcAnalyticsReader(new JdbcTemplate(ds),db);
+    @Bean AnalyticsReader analyticsReader(@Qualifier("readerDataSource") DataSource ds,JdbcTemplate db,com.ecom.domain.Semantic.Workbench semantic) {
+        return new JdbcAnalyticsReader(new JdbcTemplate(ds),db,semantic);
     }
     @Bean @ConditionalOnProperty(name="agent.model.mode",havingValue="offline",matchIfMissing=true)
     Planner offlinePlanner() {return new RulePlanner();}

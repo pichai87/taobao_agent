@@ -34,7 +34,7 @@ public final class MultiAgentWorkflow {
                 String conclusion=r.data()==null?(r.goal()==Goal.DEFINITION?"GMV：已支付订单金额，当前口径不扣退款。":r.goal()==Goal.OPS?"已读取当前账号的任务状态；未执行运维写操作。":"已说明系统能力与当前边界；未查询业务数据。"):
                     "目标日 GMV 为 "+r.data().current().gmv()+" 元。";
                 if(r.data()!=null && r.data().previous()!=null) conclusion+=" 对比日 GMV 为 "+r.data().previous().gmv()+" 元；差额 "+r.data().current().gmv().subtract(r.data().previous().gmv())+" 元。";
-                state.report=new Report("多 Agent 协作 · "+r.goal(),conclusion,"合成数据；专家独立上下文和工具权限已生效。品类贡献不是业务因果，尚无递归诊断树。",r.data(),r.evidence(),String.join("\n\n",r.sql()),ModelRuntime.MULTI_MODE,rt.redact(r.answer()));
+                state.report=new Report("多 Agent 协作 · "+r.goal(),conclusion,"合成数据；专家独立上下文和工具权限已生效。GMV 诊断树是受限的 UV/CVR/AOV 数值贡献递归，不是业务因果，也不支持任意维度或公式。",r.data(),r.evidence(),String.join("\n\n",r.sql()),ModelRuntime.MULTI_MODE,rt.redact(r.answer()));
                 Snapshot snapshot=new Snapshot();snapshot.report=state.report;snapshot.result=r.data();snapshot.evidence=r.evidence();
                 store.checkpoint(run.id(),snapshot);rt.event("report","SUCCEEDED","多 Agent 协作完成；交接事件已保存，模型对话和密钥不持久化");return Map.of("stage","report");
             }));

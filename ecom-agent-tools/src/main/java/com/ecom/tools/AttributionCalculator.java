@@ -9,8 +9,9 @@ import static com.ecom.domain.Analysis.*;
 public final class AttributionCalculator {
     public Summary summarize(List<Daily> rows) {
         BigDecimal gmv = rows.stream().map(Daily::gmv).reduce(BigDecimal.ZERO, BigDecimal::add);
-        long orders = rows.stream().mapToLong(Daily::orders).sum();
-        long uv = rows.stream().mapToLong(Daily::uv).sum();
+        long orders=0,uv=0;
+        try {for(Daily row:rows) {orders=Math.addExact(orders,row.orders());uv=Math.addExact(uv,row.uv());}}
+        catch(ArithmeticException e) {throw new com.ecom.domain.BusinessException("METRIC_OVERFLOW");}
         return new Summary(gmv, orders, uv, divide(BigDecimal.valueOf(orders), BigDecimal.valueOf(uv)),
                 divide(gmv, BigDecimal.valueOf(orders)));
     }
@@ -23,7 +24,8 @@ public final class AttributionCalculator {
                 .map(e -> new Contribution(e.getKey(), e.getValue()))
                 .sorted(Comparator.comparing(Contribution::delta)).toList();
         BigDecimal rate = p == null ? null : divide(c.gmv().subtract(p.gmv()), p.gmv());
-        return new Result(c, p, rate, contributions, List.copyOf(current));
+        return new Result(c, p, rate, contributions, List.copyOf(current),
+            current.isEmpty() || previous.isEmpty()?null:new RecursiveAttribution().diagnose(current,previous));
     }
     private BigDecimal divide(BigDecimal a, BigDecimal b) {
         return b.signum() == 0 ? null : a.divide(b, 6, RoundingMode.HALF_UP);

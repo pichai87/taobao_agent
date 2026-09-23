@@ -85,7 +85,7 @@ public class AnalysisWorkflow {
                     s.result=new Result(s.result.current(),null,null,List.of(),s.rows);
                 if (s.plan.intent()==Intent.TOP_N) {
                     List<Daily> sorted=s.rows.stream().sorted(Comparator.comparing(Daily::gmv).reversed()).toList();
-                    s.result=new Result(s.result.current(),null,null,List.of(),sorted);
+                    s.result=new Result(s.result.current(),null,null,List.of(),com.ecom.tools.QuestionConstraints.limit(q.question(),sorted));
                 }
             }
             case 4 -> {
@@ -106,7 +106,7 @@ public class AnalysisWorkflow {
                 s.report=new Report("电商分析 · "+s.plan.intent(),conclusion,
                     "本地数据为合成数据；品类贡献不是业务因果证据。趋势摘要仅统计目标日，明细包含七日数据。",
                     s.result,s.evidence,s.plan.intent()==Intent.DEFINITION ? "" :
-                    s.plan.intent()==Intent.TREND ? ApprovedSql.TREND : ApprovedSql.DAILY,planner.mode());
+                    reader.generatedSql()!=null?reader.generatedSql():s.plan.intent()==Intent.TREND ? ApprovedSql.TREND : ApprovedSql.DAILY,planner.mode());
             }
             default -> throw new IllegalStateException();
         }

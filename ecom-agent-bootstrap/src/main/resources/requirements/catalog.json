@@ -54,10 +54,10 @@
     "source": "原文 5",
     "criteria": "用业务语义模型映射指标、表、关联和 SQL。",
     "implemented": false,
-    "extent": "NONE",
-    "verification": "NOT_TESTED",
-    "rework": false,
-    "notes": "MDL 指语义模型定义。现有指标词典和固定查询模板不等于 WrenAI 语义建模，尚未接入。"
+    "extent": "PARTIAL",
+    "verification": "AUTOMATED",
+    "rework": true,
+    "notes": "2026-09-23：Java 本地语义模型及 SUM/RATIO 指标已通过编译器接入三条 Agent 读链和网页工作台。不是 WrenAI；动态 NL2MDL、多表关系及模型自主选择维度仍待实现。"
   },
   {
     "id": "sql-generation",
@@ -66,10 +66,10 @@
     "source": "原文 5",
     "criteria": "结合历史查询、Schema 召回生成 SQL，校验失败后有限次修复。",
     "implemented": false,
-    "extent": "NONE",
-    "verification": "NOT_TESTED",
-    "rework": false,
-    "notes": "Schema 指数据库结构。目前只允许预置参数化模板；模型不能生成任意 SQL，这项仍未实现。"
+    "extent": "PARTIAL",
+    "verification": "AUTOMATED",
+    "rework": true,
+    "notes": "2026-09-23：受控指标/维度计划可以编译聚合、比值、分组与参数化过滤 SQL；仍不支持历史 SQL 驱动的自由 SQL 生成和修复。"
   },
   {
     "id": "sql-gate",
@@ -81,7 +81,7 @@
     "extent": "PARTIAL",
     "verification": "AUTOMATED",
     "rework": true,
-    "notes": "已有模板白名单、参数绑定和行数限制；尚无生成 SQL 的 AST 级校验与生产数据库最小权限实测。AST 指抽象语法树。"
+    "notes": "2026-09-23：JSqlParser AST 语法/单SELECT/表检查，加可信编译器输出逐字比对、参数绑定、501行哨兵，拒绝截断及UV误聚合。只支持编译器子集，未验收任意SQL与生产最小权限。"
   },
   {
     "id": "knowledge-catalog",
@@ -90,10 +90,10 @@
     "source": "原文 6.2",
     "criteria": "维护可分析范围、表说明及语义 Schema，并可按需检索。",
     "implemented": false,
-    "extent": "NONE",
-    "verification": "NOT_TESTED",
-    "rework": false,
-    "notes": "没有表能力目录和 MDL 同步。本地指标口径种子属于指标知识，不能算作 L1 表能力清单的实现。"
+    "extent": "PARTIAL",
+    "verification": "AUTOMATED",
+    "rework": true,
+    "notes": "2026-09-23：工作台和 QueryAgent 可获得 analytics_daily 的字段、粒度、维度与限制；只有单个受控模型，未完成多源Schema同步。"
   },
   {
     "id": "knowledge-sql",
@@ -105,7 +105,7 @@
     "extent": "PARTIAL",
     "verification": "AUTOMATED",
     "rework": true,
-    "notes": "已有预置安全查询模板；没有知识检索驱动的片段召回及发布流程。"
+    "notes": "2026-09-23：QueryAgent 可召回已种入的参数化查询示例说明；没有通用SQL片段抽取/审核/发布流水线。"
   },
   {
     "id": "knowledge-rules",
@@ -126,10 +126,10 @@
     "source": "原文 6.2 / 6.3",
     "criteria": "维护表字段血缘，图谱缺失时解析 ETL 并补充知识。",
     "implemented": false,
-    "extent": "NONE",
-    "verification": "NOT_TESTED",
-    "rework": false,
-    "notes": "血缘是数据从哪里来、如何计算的关系。没有 LightRAG、ETL 解析或图谱服务。"
+    "extent": "PARTIAL",
+    "verification": "AUTOMATED",
+    "rework": true,
+    "notes": "2026-09-23：语义编译结果输出字段依赖，QueryAgent 有种子血缘文档；尚无通用ETL AST血缘或LightRAG图谱服务，不能把生成查询的字段依赖等同完整血缘图谱。"
   },
   {
     "id": "knowledge-metrics",
@@ -141,7 +141,7 @@
     "extent": "PARTIAL",
     "verification": "AUTOMATED",
     "rework": true,
-    "notes": "已有指标词典和 Java GMV 计算；公式并非可配置注册，暂不支持由注册关系自动拆解指标。"
+    "notes": "2026-09-23：网页可持久注册 SUM/RATIO 指标，禁止任意字段表达式和覆盖口径，有变更审计。仍缺乘积/商式通用注册、公式恒等式与注册驱动递归。"
   },
   {
     "id": "knowledge-memory",
@@ -150,10 +150,10 @@
     "source": "原文 6.2",
     "criteria": "在新问题中安全复用会话上下文，隔离不同用户。",
     "implemented": false,
-    "extent": "NONE",
-    "verification": "NOT_TESTED",
-    "rework": false,
-    "notes": "历史任务与当前工具调用上下文已经存在，但没有跨问题会话记忆；二者不能混为一谈。"
+    "extent": "PARTIAL",
+    "verification": "AUTOMATED",
+    "rework": true,
+    "notes": "2026-09-23：网页可明确保存/读取当前账号摘要，服务端隔离owner；没有自动新问题上下文引用，手工摘要不等同完整跨轮Agent记忆。"
   },
   {
     "id": "knowledge-onboarding",
@@ -177,7 +177,7 @@
     "extent": "PARTIAL",
     "verification": "AUTOMATED",
     "rework": true,
-    "notes": "仅有 Java 实现的品类 GMV 差额及贡献校验；差额不等于业务原因，没有递归诊断树。"
+    "notes": "2026-09-23：双期报告含GMV→UV/CVR/AOV Shapley→品类→比率分子分母诊断树；金额守恒、深度/节点/覆盖率限制、缺数据停止已测试。仅该公式及品类维度，不是任意指标多维诊断，也不证明业务因果。"
   },
   {
     "id": "sandbox-analysis",
@@ -261,7 +261,7 @@
     "extent": "PARTIAL",
     "verification": "AUTOMATED",
     "rework": true,
-    "notes": "后端已有 SSE（服务器主动推送事件）；当前网页使用串行轮询，没有连接 SSE。"
+    "notes": "2026-09-23：网页已用带认证头fetch连接SSE，按ID去重、取消旧连接、断线游标重连；终态排空1000行分页，取消/失败状态与最终事件原子提交。后端真实SSE回放及前端parser回归测试覆盖。"
   },
   {
     "id": "browser-key",

@@ -150,14 +150,14 @@ public final class ToolCallingWorkflow {
                 List<Daily> rows=reader.query(run.id(),previous?q.compareDate():q.date());
                 if(rows.isEmpty()) throw new BusinessException(previous?"NO_COMPARISON_DATA":"NO_DATA");
                 if(previous) c.previous=rows;else c.rows=rows;
-                c.result=null;c.sql.add(ApprovedSql.DAILY);
+                c.result=null;c.sql.add(reader.generatedSql()==null?ApprovedSql.DAILY:reader.generatedSql());
                 store.event(run.id(),"query","SUCCEEDED","模型选择查询"+(previous?"对比日":"目标日")+"；返回 "+rows.size()+" 行",0);
                 return rows;
             }
             case "query_trend" -> {
                 c.rows=reader.trend(run.id(),q.date().minusDays(6),q.date());
                 if(c.rows.isEmpty()) throw new BusinessException("NO_DATA");
-                c.result=null;c.sql.add(ApprovedSql.TREND);
+                c.result=null;c.sql.add(reader.generatedSql()==null?ApprovedSql.TREND:reader.generatedSql());
                 store.event(run.id(),"query","SUCCEEDED","模型选择七日趋势查询；返回 "+c.rows.size()+" 行",0);
                 return c.rows;
             }
@@ -166,7 +166,7 @@ public final class ToolCallingWorkflow {
                 if(current.isEmpty() || (call.name().equals("compare_gmv") && c.previous.isEmpty())) throw new BusinessException("TOOL_PREREQUISITE");
                 c.result=calculator.calculate(current,call.name().equals("compare_gmv")?c.previous:List.of());
                 if(call.name().equals("rank_categories")) {
-                    c.result=new Result(c.result.current(),null,null,List.of(),current.stream().sorted(Comparator.comparing(Daily::gmv).reversed()).toList());
+                    c.result=new Result(c.result.current(),null,null,List.of(),com.ecom.tools.QuestionConstraints.limit(run.request().question(),current.stream().sorted(Comparator.comparing(Daily::gmv).reversed()).toList()));
                 } else if(call.name().equals("summarize_gmv")) {
                     c.result=new Result(c.result.current(),null,null,List.of(),c.rows);
                 }

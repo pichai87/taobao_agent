@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.nio.charset.StandardCharsets;
@@ -60,6 +61,16 @@ public class JdbcRunStore implements RunStore {
     }
     public void fail(String id,String code) {
         db.update("UPDATE agent_run SET status='FAILED',error_code=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status IN ('RUNNING','QUEUED')",code,id);
+    }
+    @Transactional
+    public void failWithEvent(String id,String code) {
+        if(db.update("UPDATE agent_run SET status='FAILED',error_code=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status IN ('RUNNING','QUEUED')",code,id)==1)
+            event(id,"run","STOPPED",code,0);
+    }
+    @Transactional
+    public boolean cancelWithEvent(String id,Status from) {
+        if(!transition(id,from,Status.CANCELLED)) return false;
+        event(id,"run","CANCELLED","任务所有者取消",0);return true;
     }
     public void event(String id,String node,String status,String detail,long elapsed) {
         db.update("INSERT INTO agent_event(run_id,node,status,detail,elapsed_ms) VALUES(?,?,?,?,?)",id,node,status,detail,elapsed);
