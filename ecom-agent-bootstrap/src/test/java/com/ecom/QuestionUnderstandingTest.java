@@ -163,6 +163,24 @@ class QuestionUnderstandingTest {
         assertThat(resolve("今天所有品类包括家电美妆食品的GMV").category()).isNull();
     }
 
+    @Test void unsupportedCategoryConstraintsNeverBecomeAnAllCategoryQuery() {
+        assertIssue(resolve("查询2026-09-12服装GMV"), "UNSUPPORTED_CATEGORY");
+        assertIssue(resolve("查询2026-09-12服装品类GMV"), "UNSUPPORTED_CATEGORY");
+        assertIssue(resolve("查询2026-09-12服装类目GMV"), "UNSUPPORTED_CATEGORY");
+        assertIssue(resolve("查询2026-09-12家电和服装品类GMV"), "UNSUPPORTED_CATEGORY");
+        assertIssue(QuestionUnderstanding.resolve("服装家电品类GMV", TODAY, null, null, CLOCK), "UNSUPPORTED_CATEGORY");
+        assertIssue(resolve("查询今天服装家电品类GMV"), "UNSUPPORTED_CATEGORY");
+        assertIssue(QuestionUnderstanding.resolve("服装GMV", TODAY, null, null, CLOCK), "UNSUPPORTED_CATEGORY");
+        assertIssue(QuestionUnderstanding.resolve("查询服装GMV", TODAY, null, null, CLOCK), "UNSUPPORTED_CATEGORY");
+        assertThat(resolve("查询2026-09-12的GMV").ready()).isTrue();
+        assertThat(resolve("查询2026-09-12整体GMV").ready()).isTrue();
+        assertThat(resolve("查询2026-09-12家电GMV").category()).isEqualTo("appliances");
+        assertThat(resolve("查询今天家电品类GMV").ready()).isTrue();
+        assertThat(QuestionUnderstanding.resolve("查询全部品类GMV", TODAY, null, null, CLOCK).ready()).isTrue();
+        assertThat(QuestionUnderstanding.resolve("查询GMV", TODAY, null, null, CLOCK).ready()).isTrue();
+        assertThat(resolve("今天GMV对比昨天GMV").ready()).isTrue();
+    }
+
     @Test void distinctRequestedActionsAreNotCollapsedIntoOneIntent() {
         Resolved r = QuestionUnderstanding.resolve("解释GMV口径，再查询今天GMV排名并分析下降原因", TODAY, TODAY.minusDays(1), "GMV", CLOCK);
         assertThat(r.ready()).isTrue();

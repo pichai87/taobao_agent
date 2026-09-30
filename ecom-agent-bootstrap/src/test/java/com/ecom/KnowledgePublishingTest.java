@@ -208,6 +208,46 @@ class KnowledgePublishingTest {
         assertThatThrownBy(() -> publishing.revise(owner, first.id(), new Revision(first.version()))).hasMessage("KNOWLEDGE_REVISION_CONFLICT");
     }
 
+    @Test void revisionMayChangeContentButCannotChangeItsMetricOrLayer() throws Exception {
+        String owner = owner();
+        Draft initial = publishing.create(owner, content("GMV"));
+        Draft first = publishing.publish(owner, initial.id(), confirmed(initial));
+        Draft revision = publishing.revise(owner, first.id(), new Revision(first.version()));
+        Content otherMetric = new Content(Layer.L3_RULE, "ORDERS", "订单新口径", "另一个指标的说明", "");
+        Content otherLayer = new Content(Layer.L2_SQL, "GMV", "SQL 新示例", "另一个知识层", "");
+        assertThatThrownBy(() -> publishing.edit(owner, revision.id(), new Edit(revision.version(), otherMetric)))
+            .hasMessage("KNOWLEDGE_REVISION_IDENTITY_CONFLICT");
+        assertThatThrownBy(() -> publishing.edit(owner, revision.id(), new Edit(revision.version(), otherLayer)))
+            .hasMessage("KNOWLEDGE_REVISION_IDENTITY_CONFLICT");
+        mvc.perform(put("/api/knowledge/drafts/" + revision.id()).with(user(owner).roles("ANALYST")).with(csrf())
+            .contentType("application/json").content(json.writeValueAsString(new Edit(revision.version(), otherMetric))))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("KNOWLEDGE_REVISION_IDENTITY_CONFLICT"));
+        assertThat(publishing.get(owner, revision.id()).version()).isEqualTo(1);
+        assertThat(publishing.audit(owner, revision.id())).hasSize(1);
+        assertThat(db.queryForObject("SELECT active FROM knowledge_document WHERE id=?", Boolean.class, first.publishedDocumentId())).isTrue();
+
+        Draft edited = publishing.edit(owner, revision.id(), new Edit(revision.version(),
+            new Content(Layer.L3_RULE, "GMV", "同一指标的新标题", "同一指标的新正文", "")));
+        Draft published = publishing.publish(owner, revision.id(), confirmed(edited));
+        assertThat(published.metric()).isEqualTo("GMV");
+        assertThat(published.layer()).isEqualTo(Layer.L3_RULE);
+        assertThat(db.queryForObject("SELECT active FROM knowledge_document WHERE id=?", Boolean.class, first.publishedDocumentId())).isFalse();
+        assertThat(db.queryForObject("SELECT active FROM knowledge_document WHERE id=?", Boolean.class, published.publishedDocumentId())).isTrue();
+    }
+
+    @Test void publishRechecksRevisionIdentityAfterStoredDraftWasTamperedWith() {
+        String owner = owner();
+        Draft initial = publishing.create(owner, content("GMV"));
+        Draft first = publishing.publish(owner, initial.id(), confirmed(initial));
+        Draft revision = publishing.revise(owner, first.id(), new Revision(first.version()));
+        db.update("UPDATE knowledge_draft SET metric_code='ORDERS' WHERE id=?", revision.id());
+        assertThatThrownBy(() -> publishing.publish(owner, revision.id(), confirmed(revision)))
+            .hasMessage("KNOWLEDGE_REVISION_IDENTITY_CONFLICT");
+        assertThat(publishing.get(owner, revision.id()).status()).isEqualTo(Status.DRAFT);
+        assertThat(publishing.audit(owner, revision.id())).hasSize(1);
+        assertThat(db.queryForObject("SELECT active FROM knowledge_document WHERE id=?", Boolean.class, first.publishedDocumentId())).isTrue();
+    }
+
     @Test void httpVersionConflictIs409AndRejectHasNoImplicitConfirmation() throws Exception {
         String owner = owner();
         Draft draft = publishing.create(owner, content("GMV"));

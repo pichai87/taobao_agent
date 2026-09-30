@@ -56,6 +56,7 @@ public class JdbcKnowledgePublishing implements Service {
         checkDraft(current, edit.expectedVersion());
         Validated input = validate(edit.content());
         Content value = input.content();
+        checkRevisionIdentity(current, value);
         int changed = db.update("UPDATE knowledge_draft SET layer_code=?,metric_code=?,title=?,content=?,sql_snippet=?,sql_lineage_json=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE owner=? AND id=? AND status='DRAFT' AND version=?",
             value.layer().name(), value.metric(), value.title(), value.content(), value.sql(), encode(input.lineage()), owner, id, edit.expectedVersion());
         if (changed != 1) throw conflict();
@@ -71,6 +72,7 @@ public class JdbcKnowledgePublishing implements Service {
         checkDraft(current, review.expectedVersion());
         // Revalidate against the CURRENT metric registry and schema at the moment of approval.
         Validated input = validate(contentOf(current));
+        checkRevisionIdentity(current, input.content());
         int changed = db.update("UPDATE knowledge_draft SET status='PUBLISHED',version=version+1,sql_lineage_json=?,updated_at=CURRENT_TIMESTAMP WHERE owner=? AND id=? AND status='DRAFT' AND version=?",
             encode(input.lineage()), owner, id, review.expectedVersion());
         if (changed != 1) throw conflict();
@@ -132,6 +134,7 @@ public class JdbcKnowledgePublishing implements Service {
     }
 
     private record Validated(Content content, Lineage.Result lineage) {}
+    private record Identity(String metric, Layer layer) {}
 
     private Validated validate(Content input) {
         if (input == null || input.layer() == null) throw invalid();
@@ -158,6 +161,16 @@ public class JdbcKnowledgePublishing implements Service {
     private void checkDraft(Draft draft, long expectedVersion) {
         if (draft.status() != Status.DRAFT) throw new BusinessException("KNOWLEDGE_STATE_CONFLICT");
         if (draft.version() != expectedVersion || expectedVersion == Long.MAX_VALUE) throw conflict();
+    }
+
+    private void checkRevisionIdentity(Draft draft, Content proposed) {
+        if (draft.supersedesDocumentId() == null) return;
+        var original = db.query("SELECT metric_code,layer_code FROM knowledge_document WHERE id=?",
+            (r,n) -> new Identity(r.getString("metric_code"), Layer.valueOf(r.getString("layer_code"))),
+            draft.supersedesDocumentId()).stream().findFirst()
+            .orElseThrow(() -> new BusinessException("KNOWLEDGE_REVISION_CONFLICT"));
+        if (!original.metric().equals(proposed.metric()) || original.layer() != proposed.layer())
+            throw new BusinessException("KNOWLEDGE_REVISION_IDENTITY_CONFLICT");
     }
 
     private static String required(String value, int max) {

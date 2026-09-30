@@ -34,6 +34,7 @@ public final class QuestionUnderstanding {
     private static final Pattern NEGATED_PREFIX = Pattern.compile(
         "(?i)(?:不要(?:看|查)?|不是|不含|不包括|排除|剔除|去掉|去除|除去|除了|除|不查|不看|忽略|非)\\s*" + FILTER_TARGET);
     private static final Pattern NEGATED_SUFFIX = Pattern.compile("(?i)" + FILTER_TARGET + "\\s*(?:以外|之外|除外)");
+    private static final Pattern CATEGORY_LABEL = Pattern.compile("([\\p{IsHan}a-zA-Z_]{1,12})\\s*(?:品类|类目)");
     private static final Map<String, Pattern> METRIC_PATTERNS = Map.of(
         "GMV", pattern("GMV", "支付成交额|成交金额|成交额|交易额|支付金额|支付订单金额"),
         "ORDERS", pattern("ORDERS", "支付订单笔数|订单数量|订单数|订单量|支付单量|(?:多少|几)笔订单|(?:多少|几)单"),
@@ -111,7 +112,7 @@ public final class QuestionUnderstanding {
             issues.add("MISSING_TREND_RANGE", "趋势问题需要明确起止日期或最近 N 天，不默认猜七天。");
         LocalDate start = time.start != null ? time.start : date;
         LocalDate end = time.end != null ? time.end : date;
-        String category = category(q, issues);
+        String category = category(q, time.points, issues);
         return new Resolved(metrics, intents, date, compare, start, end, category, top, issues.values(), rules);
     }
 
@@ -238,14 +239,45 @@ public final class QuestionUnderstanding {
         }
     }
 
-    private static String category(String q, Issues issues) {
+    private static String category(String q, List<Point> dates, Issues issues) {
         List<String> found = matches(q, CATEGORIES);
+        Matcher labelled = CATEGORY_LABEL.matcher(q);
+        while (labelled.find()) {
+            for (String segment : labelled.group(1).split("[和与及、]")) {
+                if (!knownOrGeneralCategoryLabel(segment))
+                    issues.add("UNSUPPORTED_CATEGORY", "问题包含当前词表以外的品类，或要求尚未确认的品类分组，请明确家电、美妆、食品或全部品类。", segment);
+            }
+        }
+        // A category can be written directly before a metric, with the date in text or supplied by the form.
+        // Only a short bare Chinese qualifier is treated as a possible category; other grammar is not guessed.
+        for (Pattern metric : METRIC_PATTERNS.values()) {
+            Matcher mention = metric.matcher(q);
+            while (mention.find()) {
+                Point nearest = null;
+                for (Point date : dates) if (date.end <= mention.start() &&
+                    (nearest == null || date.end > nearest.end)) nearest = date;
+                int from = nearest == null ? 0 : nearest.end;
+                Matcher range = RANGE.matcher(q);
+                while (range.find()) if (range.end() <= mention.start() && range.end() > from) from = range.end();
+                String between = q.substring(from, mention.start()).trim();
+                if (from == 0) between = between.replaceFirst("^(?:查询|查看|统计|分析|解释|请问|请|帮我)+", "");
+                between = between.replaceAll("^的|的$", "");
+                if (between.matches("[\\p{IsHan}]{2,8}") && !between.contains("品类") && !between.contains("类目") &&
+                    !Set.of("家电", "美妆", "食品", "支付", "目标日", "对比日", "当日", "当天", "今日", "昨日", "整体", "总计", "全店", "全站", "去年同期", "去年同一天", "日同比", "日环比").contains(between))
+                    issues.add("UNSUPPORTED_CATEGORY", "指标前有未识别的限定词，可能是词表外品类；请明确查询范围。", between);
+            }
+        }
         if (contains(q, "全部品类", "所有品类", "各个品类", "所有类目")) return null;
         if (found.size() > 1) { issues.add("MULTIPLE_CATEGORIES", "当前过滤契约只支持一个品类，请明确或拆分。", found.toArray(String[]::new)); return null; }
         if (found.size() == 1) return found.getFirst();
         Matcher explicit = Pattern.compile("(?:品类|类目)\\s*(?:为|是|=|:|：)\\s*([\\p{IsHan}a-zA-Z_]+)").matcher(q);
         if (explicit.find()) issues.add("UNSUPPORTED_CATEGORY", "该品类不在当前家电、美妆、食品词表内。", explicit.group(1));
         return null;
+    }
+
+    private static boolean knownOrGeneralCategoryLabel(String text) {
+        String name = text.replaceFirst("^(?:请|帮我|查询|查看|查|看|统计|分析|解释|今天|昨天|前天|当日|当天|今日|昨日|日)+", "");
+        return Set.of("家电", "美妆", "食品", "全部", "所有", "各个", "每个", "不同", "按", "的").contains(name);
     }
 
     private static LocalDate mergeDate(LocalDate text, LocalDate form, String code, String label, Issues issues) {

@@ -67,6 +67,20 @@ class QuestionApiTest {
         assertThat(db.queryForObject("SELECT COUNT(*) FROM semantic_change_audit WHERE action='QUERY'", Integer.class)).isEqualTo(before);
     }
 
+    @Test void unsupportedCategoryWithFormDateCannotFallBackToAllCategories() throws Exception {
+        String body = "{\"question\":\"服装GMV\",\"date\":\"2026-09-12\"}";
+        int before = db.queryForObject("SELECT COUNT(*) FROM semantic_change_audit WHERE action='QUERY'", Integer.class);
+        mvc.perform(post("/api/questions/preview").with(user("alice").roles("ANALYST")).with(csrf())
+            .contentType("application/json").content(body))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.ready").value(false))
+            .andExpect(jsonPath("$.queryExecutable").value(false))
+            .andExpect(jsonPath("$.understanding.clarifications[0].code").value("UNSUPPORTED_CATEGORY"));
+        mvc.perform(post("/api/questions/query").with(user("alice").roles("ANALYST")).with(csrf())
+            .contentType("application/json").content(body))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("QUESTION_NEEDS_CLARIFICATION"));
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM semantic_change_audit WHERE action='QUERY'", Integer.class)).isEqualTo(before);
+    }
+
     @Test void topNReturnsOnlyTheRequestedHighestCategories() throws Exception {
         String body = "{\"question\":\"2026-09-12 GMV前2名\"}";
         mvc.perform(post("/api/questions/query").with(user("alice").roles("ANALYST")).with(csrf())

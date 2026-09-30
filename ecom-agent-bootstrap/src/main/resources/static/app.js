@@ -33,6 +33,7 @@
     KNOWLEDGE_VERSION_CONFLICT: "草稿已被另一页面修改，请刷新草稿后重试。",
     KNOWLEDGE_STATE_CONFLICT: "草稿状态已改变；已发布或驳回的版本不能直接编辑。",
     KNOWLEDGE_REVISION_CONFLICT: "已有其他修订取代此版本，请刷新审核记录。",
+    KNOWLEDGE_REVISION_IDENTITY_CONFLICT: "修订只能修改原知识项的内容；更换指标或知识层请新建草稿。",
     KNOWLEDGE_NOT_FOUND: "草稿不存在，或不属于当前账号。",
     INVALID_EXECUTION_MODE: "不支持这种执行方式，请选择页面列出的模式。",
     INTENT_ROUTE_CONFLICT: "模型路由与问题中明确的数据要求冲突，已停止，请明确问题后重试。",

@@ -30,7 +30,8 @@ public class KnowledgePublishingController {
     public ResponseEntity<Map<String,String>> failure(BusinessException error) {
         HttpStatus status = switch (error.code()) {
             case "KNOWLEDGE_NOT_FOUND" -> HttpStatus.NOT_FOUND;
-            case "KNOWLEDGE_VERSION_CONFLICT", "KNOWLEDGE_STATE_CONFLICT", "KNOWLEDGE_REVISION_CONFLICT" -> HttpStatus.CONFLICT;
+            case "KNOWLEDGE_VERSION_CONFLICT", "KNOWLEDGE_STATE_CONFLICT", "KNOWLEDGE_REVISION_CONFLICT",
+                 "KNOWLEDGE_REVISION_IDENTITY_CONFLICT" -> HttpStatus.CONFLICT;
             default -> HttpStatus.BAD_REQUEST;
         };
         return ResponseEntity.status(status).body(Map.of("code", error.code()));
