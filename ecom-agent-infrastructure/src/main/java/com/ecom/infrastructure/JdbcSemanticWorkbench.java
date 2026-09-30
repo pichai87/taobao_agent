@@ -55,17 +55,13 @@ public class JdbcSemanticWorkbench implements Workbench {
     public List<KnowledgeHit> recall(String metric,String question) {
         if(metric==null || !metric.matches("[A-Z][A-Z0-9_]{0,31}") || question==null || question.length()>2000)
             throw new BusinessException("INVALID_REQUEST");
-        var hits=new ArrayList<>(db.query("SELECT id,layer_code,title,content,version FROM knowledge_document WHERE active=TRUE AND (metric_code=? OR metric_code='*') ORDER BY layer_code,id LIMIT 32",
-            (r,n)->new KnowledgeHit(r.getString(1),r.getString(2),r.getString(3),r.getString(4),r.getString(5)),metric));
+        var order=KnowledgeRanking.order(question,"layer_code,id");
+        var args=new ArrayList<Object>();args.add(metric);args.addAll(order.parameters());
+        var hits=new ArrayList<>(db.query("SELECT id,layer_code,title,content,version FROM knowledge_document WHERE active=TRUE AND (metric_code=? OR metric_code='*') ORDER BY " + order.sql() + " LIMIT 12",
+            (r,n)->new KnowledgeHit(r.getString(1),r.getString(2),r.getString(3),r.getString(4),r.getString(5)),args.toArray()));
         model().metrics().stream().filter(m->m.code().equals(metric)).findFirst().ifPresent(m->hits.add(new KnowledgeHit("metric-"+metric,"L5_METRIC",m.name(),m.description(),"1")));
-        hits.sort(Comparator.<KnowledgeHit>comparingInt(h->relevance(h,question)).reversed().thenComparing(KnowledgeHit::id));
+        hits.sort(Comparator.<KnowledgeHit>comparingInt(h->KnowledgeRanking.score(h.title(),h.text(),question)).reversed().thenComparing(KnowledgeHit::id));
         return hits.stream().limit(12).toList();
-    }
-    private static int relevance(KnowledgeHit hit,String question) {
-        int score=0;
-        for(String term:List.of("口径","归因","血缘","SQL","UV","GMV","订单","转化","模型"))
-            if(question.toUpperCase(Locale.ROOT).contains(term) && (hit.title()+hit.text()).toUpperCase(Locale.ROOT).contains(term)) score++;
-        return score;
     }
     @Transactional
     public void remember(String owner,String summary) {
