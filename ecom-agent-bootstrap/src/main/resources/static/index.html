@@ -115,6 +115,62 @@
         </details>
       </details>
 
+      <details class="card">
+        <summary>自然语言问题预检与查询（无模型费用）</summary>
+        <p class="hint">预检 = 先把问题拆成指标、日期和任务，遇到歧义会请你澄清。此处使用确定性规则；查询只走已注册的语义模型。复杂解释仍进入下方 GMV Agent 主分析。</p>
+        <form id="question-preview-form" class="run-form">
+          <label class="wide">经营问题<input id="question-preview-text" maxlength="2000" value="查询2026-09-12的GMV和订单数" required></label>
+          <label>补充目标日期（可选）<input id="question-preview-date" type="date"></label>
+          <label>补充对比日期（可选）<input id="question-preview-compare" type="date"></label>
+          <label>补充指标（可选）<select id="question-preview-metric"><option value="">由问题识别</option><option>GMV</option><option>ORDERS</option><option>UV</option><option>CVR</option><option>AOV</option></select></label>
+          <button type="submit">预检问题</button>
+          <button id="question-query" type="button" disabled>执行受控查询</button>
+        </form>
+        <p id="question-preview-status" class="hint" aria-live="polite"></p>
+        <pre id="question-preview-result"></pre>
+      </details>
+
+      <details class="card">
+        <summary>SQL 字段血缘（只分析，不执行）</summary>
+        <p class="hint">血缘 = 输出字段从哪些表、哪些列计算而来。AST = 抽象语法树。仅支持服务端批准的表结构；解析通过不代表 SQL 获得执行权限。</p>
+        <button id="lineage-model" type="button">查看现有分析模型的真实上游</button>
+        <form id="lineage-form">
+          <label>SELECT 语句<textarea id="lineage-sql" maxlength="32000" required>SELECT category, SUM(paid_amount) AS gmv FROM biz_order WHERE status = 'PAID' GROUP BY category</textarea></label>
+          <button type="submit">分析字段血缘</button>
+        </form>
+        <p id="lineage-status" class="hint" aria-live="polite"></p>
+        <pre id="lineage-result"></pre>
+      </details>
+
+      <details id="knowledge-workbench" class="card">
+        <summary>知识草稿与人工发布</summary>
+        <p class="hint">L1—L4 = 表模型、SQL 示例、业务规则、字段血缘知识。草稿仅当前账号可见；发布后会进入查询专家的知识召回。发布需你明确确认，SQL 示例只做静态检查，不执行。</p>
+        <div class="history-controls">
+          <label>我的草稿<select id="knowledge-draft-list"><option value="">新建草稿</option></select></label>
+          <button id="knowledge-refresh" class="secondary" type="button">刷新草稿</button>
+          <button id="knowledge-new" class="secondary" type="button">新建</button>
+        </div>
+        <p id="knowledge-current" class="hint">尚未选择草稿。</p>
+        <form id="knowledge-form" class="run-form">
+          <label>知识层<select id="knowledge-layer"><option value="L1_MODEL">L1 表模型</option><option value="L2_SQL">L2 SQL 示例</option><option value="L3_RULE" selected>L3 业务规则</option><option value="L4_LINEAGE">L4 血缘说明</option></select></label>
+          <label>指标代码<input id="knowledge-metric" maxlength="32" value="GMV" required></label>
+          <label class="wide">标题<input id="knowledge-title" maxlength="256" value="GMV 支付口径" required></label>
+          <label class="wide">内容<textarea id="knowledge-content" maxlength="6000" required>仅统计已支付订单；数值变化不等于业务因果。</textarea></label>
+          <label class="wide">SQL 示例（可选）<textarea id="knowledge-sql" maxlength="16000" placeholder="SELECT ...；仅作字段血缘预检，不会执行"></textarea></label>
+          <button id="knowledge-save" type="submit">创建草稿</button>
+          <button id="knowledge-audit" type="button" disabled>查看审核记录</button>
+          <button id="knowledge-revise" type="button" disabled>基于已发布版本修订</button>
+        </form>
+        <label class="wide">审核备注（发布或驳回必填）<textarea id="knowledge-review-note" maxlength="1000"></textarea></label>
+        <label class="check"><input id="knowledge-confirm" type="checkbox"> 我已核对本版内容和 SQL 边界，确认执行发布或驳回</label>
+        <div class="history-controls">
+          <button id="knowledge-publish" type="button" disabled>发布当前草稿</button>
+          <button id="knowledge-reject" class="secondary" type="button" disabled>驳回当前草稿</button>
+        </div>
+        <p id="knowledge-status" class="hint" aria-live="polite"></p>
+        <pre id="knowledge-result"></pre>
+      </details>
+
       <section class="card request-card">
         <div class="section-heading">
           <div>

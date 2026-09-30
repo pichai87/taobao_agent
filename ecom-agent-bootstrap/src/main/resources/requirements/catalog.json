@@ -9,7 +9,7 @@
     "extent": "PARTIAL",
     "verification": "AUTOMATED",
     "rework": true,
-    "notes": "新增 IntentAgent 结构化 goal/confidence、低置信度显式规则降级；认证失败不降级。日期仍由表单绑定，尚未完成自然语言日期、多意图与维度推断。"
+    "notes": "2026-10-01：独立问题预检可解析常见中文日期、五个指标、部分多意图/品类/TopN，并在歧义或否定筛选时拒绝执行；网页可查询受控语义计划。主 /api/runs 的 IntentAgent 仍只输出 goal/confidence，日期由表单提供，未完成主多 Agent 链内的动态多任务规划。"
   },
   {
     "id": "supervisor",
@@ -93,7 +93,7 @@
     "extent": "PARTIAL",
     "verification": "AUTOMATED",
     "rework": true,
-    "notes": "2026-09-23：工作台和 QueryAgent 可获得 analytics_daily 的字段、粒度、维度与限制；只有单个受控模型，未完成多源Schema同步。"
+    "notes": "2026-10-01：工作台和 QueryAgent 可获得 analytics_daily 的字段、粒度、维度与限制；L1 文档可经草稿审核发布后召回。只有单个受控模型，发布文档不会自动更新 Schema，未完成多源结构同步。"
   },
   {
     "id": "knowledge-sql",
@@ -105,7 +105,7 @@
     "extent": "PARTIAL",
     "verification": "AUTOMATED",
     "rework": true,
-    "notes": "2026-09-23：QueryAgent 可召回已种入的参数化查询示例说明；没有通用SQL片段抽取/审核/发布流水线。"
+    "notes": "2026-10-01：L2 SQL 示例可新建草稿、做受控 AST 字段血缘预检、人工确认发布并进入查询专家召回；示例不会自动执行或驱动 SQL 修复，尚无成功查询自动抽取流水线。"
   },
   {
     "id": "knowledge-rules",
@@ -117,7 +117,7 @@
     "extent": "PARTIAL",
     "verification": "AUTOMATED",
     "rework": true,
-    "notes": "已有已批准规则及报告证据引用；缺少完整的录入、审批、版本回滚与场景召回。"
+    "notes": "2026-10-01：L3 规则可通过网页创建/编辑/驳回/人工确认发布、版本修订与审计，已发布规则可进入 QueryAgent 召回；模型上下文设总字符预算。仍缺独立双人审批、冲突检测与自动场景索引。"
   },
   {
     "id": "knowledge-lineage",
@@ -129,7 +129,7 @@
     "extent": "PARTIAL",
     "verification": "AUTOMATED",
     "rework": true,
-    "notes": "2026-09-23：语义编译结果输出字段依赖，QueryAgent 有种子血缘文档；尚无通用ETL AST血缘或LightRAG图谱服务，不能把生成查询的字段依赖等同完整血缘图谱。"
+    "notes": "2026-10-01：受控 SELECT AST 血缘支持列来源、行来源、筛选和 JOIN/CTE/UNION 等限定子集，网页可分析 SQL 或现有模型上游，L4 文档可审核发布并召回。仍不支持写入型 ETL 全链、跨文件血缘图谱或 LightRAG 服务。"
   },
   {
     "id": "knowledge-metrics",
@@ -162,10 +162,10 @@
     "source": "原文 6.6 / 8.1",
     "criteria": "同步结构、抽取规则、审核新知识并发布；结构变化时更新知识。",
     "implemented": false,
-    "extent": "NONE",
-    "verification": "NOT_TESTED",
-    "rework": false,
-    "notes": "Flyway 教学种子不等于业务数据接入流水线。本页需求验收也不是知识发布审批。"
+    "extent": "PARTIAL",
+    "verification": "LOCAL_E2E",
+    "rework": true,
+    "notes": "2026-10-01：网页可为 L1-L4 创建/编辑草稿，经明确人工确认后发布、驳回、修订并查看审计；本机隔离库已验证。还没有自动 Schema/ETL 接入、候选知识抽取、冲突检测或结构变更后的失效重审。"
   },
   {
     "id": "recursive-attribution",
