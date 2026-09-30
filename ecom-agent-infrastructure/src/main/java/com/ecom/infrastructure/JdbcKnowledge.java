@@ -22,8 +22,10 @@ public class JdbcKnowledge implements Knowledge {
         source.lineage().columns().stream().filter(c->List.of("gmv","paid_orders","uv").contains(c.output())).forEach(c ->
             evidence.add(new Evidence("ast-"+c.output(),"AST 字段血缘："+c.output(),c.transformation()+"；字段来源="+c.sources()+"；行来源="+c.rowSources(),source.version())));
         evidence.add(new Evidence("ast-filters","AST 筛选与关联依据",source.lineage().predicates().toString(),source.version()));
-        evidence.addAll(db.query("SELECT id,title,content,version FROM knowledge_document WHERE active=TRUE AND (metric_code=? OR metric_code='*') AND layer_code<>'L3_RULE' ORDER BY layer_code,id LIMIT 6",
-            (r,n)->new Evidence(r.getString(1),r.getString(2),r.getString(3),r.getString(4)),metric));
+        var documentOrder=KnowledgeRanking.order(question,"layer_code,id");
+        var documentArgs=new ArrayList<Object>();documentArgs.add(metric);documentArgs.addAll(documentOrder.parameters());
+        evidence.addAll(db.query("SELECT id,title,content,version FROM knowledge_document WHERE active=TRUE AND (metric_code=? OR metric_code='*') AND layer_code<>'L3_RULE' ORDER BY " + documentOrder.sql() + " LIMIT 6",
+            (r,n)->new Evidence(r.getString(1),r.getString(2),r.getString(3),r.getString(4)),documentArgs.toArray()));
         // 只压缩送给 Agent 的副本；知识库原文及审核快照保持完整。
         return bounded(evidence,14_000,1_200);
     }
@@ -31,12 +33,11 @@ public class JdbcKnowledge implements Knowledge {
         if(metric==null || !metric.matches("[A-Z][A-Z0-9_]{0,31}")) throw new com.ecom.domain.BusinessException("METRIC_NOT_SUPPORTED");
         String query=question==null?"":question;
         // 主链先限定指标口径层，再按问题中的术语排序；不再把全部文档混入模型上下文。
-        var found=db.query("SELECT id,title,content,version FROM knowledge_document WHERE active=TRUE AND (metric_code=? OR metric_code='*') AND layer_code='L3_RULE' ORDER BY id LIMIT 24",
-            (r,n)->new Evidence(r.getString(1),r.getString(2),r.getString(3),r.getString(4)),metric);
-        return bounded(found.stream().sorted(Comparator.<Evidence>comparingInt(e -> {
-            int score=0;for(String term:List.of("归因","口径","UV","订单","转化")) if(query.contains(term) && (e.title()+e.text()).contains(term)) score++;
-            return score;
-        }).reversed().thenComparing(Evidence::id)).limit(8).toList(),8_000,1_200);
+        var order=KnowledgeRanking.order(query,"id");
+        var args=new ArrayList<Object>();args.add(metric);args.addAll(order.parameters());
+        var found=db.query("SELECT id,title,content,version FROM knowledge_document WHERE active=TRUE AND (metric_code=? OR metric_code='*') AND layer_code='L3_RULE' ORDER BY " + order.sql() + " LIMIT 8",
+            (r,n)->new Evidence(r.getString(1),r.getString(2),r.getString(3),r.getString(4)),args.toArray());
+        return bounded(found,8_000,1_200);
     }
     private static List<Evidence> bounded(List<Evidence> source,int totalChars,int perTextChars) {
         var answer=new ArrayList<Evidence>();
