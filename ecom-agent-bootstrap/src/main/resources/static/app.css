@@ -20,9 +20,10 @@ h2 { margin: 0; font-size: 21px; }
 .run-form { grid-template-columns: 1fr 1fr 1fr; align-items: end; margin-top: 22px; }
 .wide { grid-column: 1 / -1; }
 label { display: grid; gap: 7px; font-size: 14px; font-weight: 650; }
-input, select, button { min-height: 43px; border-radius: 9px; font: inherit; }
-input, select { width: 100%; border: 1px solid #bfcbd8; padding: 0 11px; background: #fff; color: var(--ink); }
-input:focus, select:focus { outline: 3px solid #bfd7ff; border-color: var(--blue); }
+input, select, textarea, button { min-height: 43px; border-radius: 9px; font: inherit; }
+input, select, textarea { width: 100%; border: 1px solid #bfcbd8; padding: 0 11px; background: #fff; color: var(--ink); }
+textarea { min-height: 110px; padding: 11px; resize: vertical; line-height: 1.55; }
+input:focus, select:focus, textarea:focus { outline: 3px solid #bfd7ff; border-color: var(--blue); }
 button { cursor: pointer; border: 0; padding: 0 18px; color: #fff; background: var(--blue); font-weight: 750; white-space: nowrap; }
 button:hover { background: #0f55bb; }
 button:disabled { cursor: wait; opacity: .65; }

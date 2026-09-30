@@ -25,6 +25,15 @@
     INVALID_SEMANTIC_PLAN: "指标、维度、日期或查询行数不符合语义模型约束。",
     INVALID_METRIC_DEFINITION: "指标定义不合法，请使用已有字段和允许的公式。",
     METRIC_ALREADY_EXISTS: "指标代码已存在，请换一个代码，不能覆盖已有口径。",
+    QUESTION_NEEDS_CLARIFICATION: "问题中的指标或日期尚有歧义，请先按预检提示补充。",
+    METRIC_DATE_BINDING_AMBIGUOUS: "无法确认每个指标对应哪一天，请明确写出各自的日期和指标。",
+    INVALID_KNOWLEDGE_CONTENT: "知识内容不合法，请检查必填项、长度或密钥内容。",
+    KNOWLEDGE_METRIC_NOT_REGISTERED: "指标代码尚未注册；可先在语义工作台注册，或使用 * 表示通用知识。",
+    KNOWLEDGE_CONFIRMATION_REQUIRED: "请填写审核备注，并勾选人工确认。",
+    KNOWLEDGE_VERSION_CONFLICT: "草稿已被另一页面修改，请刷新草稿后重试。",
+    KNOWLEDGE_STATE_CONFLICT: "草稿状态已改变；已发布或驳回的版本不能直接编辑。",
+    KNOWLEDGE_REVISION_CONFLICT: "已有其他修订取代此版本，请刷新审核记录。",
+    KNOWLEDGE_NOT_FOUND: "草稿不存在，或不属于当前账号。",
     INVALID_EXECUTION_MODE: "不支持这种执行方式，请选择页面列出的模式。",
     INTENT_ROUTE_CONFLICT: "模型路由与问题中明确的数据要求冲突，已停止，请明确问题后重试。",
     AGENT_TOOL_FORBIDDEN: "专家请求了职责范围以外的工具，后端已拒绝。",
@@ -109,7 +118,8 @@
     headers.set("Authorization", state.auth);
     // 认证失败显示在表单中，不触发浏览器原生 Basic 弹窗。
     headers.set("X-Requested-With", "XMLHttpRequest");
-    if (options.method === "POST") headers.set(state.csrfHeader, state.csrf);
+    if (options.method && !["GET", "HEAD", "OPTIONS", "TRACE"].includes(options.method.toUpperCase()))
+      headers.set(state.csrfHeader, state.csrf);
     let response;
     try {
       response = await fetch(path, { ...options, headers, credentials: "same-origin",
@@ -356,6 +366,144 @@
     event.preventDefault(); return workbenchAction(() => postJson("/api/semantic/memory", { summary: $("memory-summary").value }));
   });
   $("memory-load").onclick = () => workbenchAction(async () => { $("memory-summary").value = (await api("/api/semantic/memory")).summary; });
+  let previewBody = null;
+  const questionInput = () => ({ question: $("question-preview-text").value.trim(),
+    date: $("question-preview-date").value || null, compareDate: $("question-preview-compare").value || null,
+    metric: $("question-preview-metric").value || null });
+  $("question-preview-form").addEventListener("input", () => {
+    previewBody = null; $("question-query").disabled = true;
+    $("question-preview-status").textContent = "输入已变化，请重新预检。";
+  });
+  $("question-preview-form").addEventListener("submit", async event => {
+    event.preventDefault(); previewBody = null; $("question-query").disabled = true;
+    $("question-preview-status").textContent = "正在识别指标、日期与任务…";
+    try {
+      const body = questionInput();
+      const result = await postJson("/api/questions/preview", body);
+      $("question-preview-result").textContent = JSON.stringify(result, null, 2);
+      if (result.ready && result.queryExecutable) {
+        previewBody = body; $("question-query").disabled = false;
+        $("question-preview-status").textContent = "预检通过，可执行受控查询；本入口不会生成业务因果解释。";
+      } else {
+        $("question-preview-status").textContent = "需要澄清或当前计划不可执行：" +
+          (result.understanding?.clarifications || []).map(item => item.message).join("；") +
+          (result.limitations || []).filter(item => item.startsWith("计划暂不可执行") || item.startsWith("排名须")).join("；");
+      }
+    } catch (error) { $("question-preview-status").textContent = message(error.message); }
+  });
+  $("question-query").onclick = async () => {
+    if (!previewBody) return;
+    $("question-query").disabled = true; $("question-preview-status").textContent = "正在执行受控只读查询…";
+    try {
+      const result = await postJson("/api/questions/query", previewBody);
+      $("question-preview-result").textContent = JSON.stringify(result, null, 2);
+      $("question-preview-status").textContent = "查询完成。null 表示未知，不能当作 0。";
+    } catch (error) { $("question-preview-status").textContent = message(error.message); }
+    finally { $("question-query").disabled = false; }
+  };
+  const lineageAction = async action => {
+    $("lineage-status").textContent = "正在分析，SQL 不会被执行…";
+    try { $("lineage-result").textContent = JSON.stringify(await action(), null, 2); $("lineage-status").textContent = "字段来源、行来源和筛选依赖如下。尚未接入 DataWorks / LightRAG。"; }
+    catch (error) { $("lineage-status").textContent = "分析被拒绝：" + error.message + "。请检查字段歧义或暂不支持的 SQL 结构。"; }
+  };
+  $("lineage-form").addEventListener("submit", event => { event.preventDefault(); return lineageAction(() => postJson("/api/lineage/analyze", { sql: $("lineage-sql").value })); });
+  $("lineage-model").onclick = () => lineageAction(() => api("/api/lineage/model"));
+  let currentDraft = null;
+  const knowledgeContent = () => ({ layer: $("knowledge-layer").value, metric: $("knowledge-metric").value.trim().toUpperCase(),
+    title: $("knowledge-title").value.trim(), content: $("knowledge-content").value.trim(), sql: $("knowledge-sql").value.trim() });
+  const showDraft = draft => {
+    currentDraft = draft;
+    $("knowledge-confirm").checked = false; $("knowledge-review-note").value = "";
+    if (draft) {
+      $("knowledge-layer").value = draft.layer; $("knowledge-metric").value = draft.metric;
+      $("knowledge-title").value = draft.title; $("knowledge-content").value = draft.content;
+      $("knowledge-sql").value = draft.sql;
+    }
+    const editable = !draft || draft.status === "DRAFT";
+    ["knowledge-layer", "knowledge-metric", "knowledge-title", "knowledge-content", "knowledge-sql"]
+      .forEach(id => { $(id).disabled = !editable; });
+    $("knowledge-save").disabled = !editable;
+    $("knowledge-save").textContent = draft ? "保存草稿修改" : "创建草稿";
+    $("knowledge-publish").disabled = !draft || draft.status !== "DRAFT";
+    $("knowledge-reject").disabled = !draft || draft.status !== "DRAFT";
+    $("knowledge-revise").disabled = !draft || draft.status !== "PUBLISHED";
+    $("knowledge-audit").disabled = !draft;
+    $("knowledge-current").textContent = draft ?
+      `当前：${draft.title} · ${draft.status} · 修订 ${draft.revision} · 版本 ${draft.version} · ${draft.id}` : "正在编写新草稿，尚未发布。";
+  };
+  const refreshDrafts = async selectedId => {
+    const drafts = await api("/api/knowledge/drafts");
+    $("knowledge-draft-list").replaceChildren(new Option("新建草稿", ""));
+    drafts.forEach(draft => $("knowledge-draft-list").append(new Option(
+      `${draft.status} · ${draft.title} · 修订 ${draft.revision}`, draft.id)));
+    if (selectedId && drafts.some(draft => draft.id === selectedId)) {
+      $("knowledge-draft-list").value = selectedId;
+      showDraft(await api("/api/knowledge/drafts/" + encodeURIComponent(selectedId)));
+    } else { $("knowledge-draft-list").value = ""; showDraft(null); }
+    $("knowledge-status").textContent = `已读取当前账号最近 ${drafts.length} 条草稿。`;
+  };
+  const knowledgeAction = async action => {
+    $("knowledge-status").textContent = "处理中…";
+    try { await action(); }
+    catch (error) { $("knowledge-status").textContent = message(error.message); }
+  };
+  $("knowledge-refresh").onclick = () => knowledgeAction(() => refreshDrafts(currentDraft?.id));
+  $("knowledge-new").onclick = () => {
+    $("knowledge-draft-list").value = ""; showDraft(null);
+    $("knowledge-layer").value = "L3_RULE"; $("knowledge-metric").value = "GMV";
+    $("knowledge-title").value = ""; $("knowledge-content").value = ""; $("knowledge-sql").value = "";
+    $("knowledge-result").textContent = "";
+  };
+  $("knowledge-draft-list").onchange = () => knowledgeAction(async () => {
+    const id = $("knowledge-draft-list").value;
+    showDraft(id ? await api("/api/knowledge/drafts/" + encodeURIComponent(id)) : null);
+    $("knowledge-status").textContent = id ? "已载入草稿，请核对版本后修改或审核。" : "正在编写新草稿。";
+  });
+  $("knowledge-form").addEventListener("submit", event => {
+    event.preventDefault(); return knowledgeAction(async () => {
+      const draft = currentDraft ? await api("/api/knowledge/drafts/" + encodeURIComponent(currentDraft.id),
+        { method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ expectedVersion: currentDraft.version, content: knowledgeContent() }) }) :
+        await postJson("/api/knowledge/drafts", knowledgeContent());
+      await refreshDrafts(draft.id);
+      $("knowledge-result").textContent = JSON.stringify(draft, null, 2);
+      $("knowledge-status").textContent = "草稿已保存；尚未发布给查询专家。";
+    });
+  });
+  const reviewDraft = action => knowledgeAction(async () => {
+    if (!currentDraft || currentDraft.status !== "DRAFT") return;
+    if (!$("knowledge-confirm").checked || !$("knowledge-review-note").value.trim()) {
+      $("knowledge-status").textContent = message("KNOWLEDGE_CONFIRMATION_REQUIRED"); return;
+    }
+    const draft = await postJson("/api/knowledge/drafts/" + encodeURIComponent(currentDraft.id) + "/" + action,
+      { expectedVersion: currentDraft.version, confirmed: true, note: $("knowledge-review-note").value.trim() });
+    await refreshDrafts(draft.id);
+    $("knowledge-result").textContent = JSON.stringify(draft, null, 2);
+    $("knowledge-status").textContent = action === "publish" ?
+      "发布成功，已进入已发布知识；可通过查询专家召回。" : "草稿已驳回，未进入知识召回。";
+  });
+  $("knowledge-publish").onclick = () => reviewDraft("publish");
+  $("knowledge-reject").onclick = () => reviewDraft("reject");
+  $("knowledge-revise").onclick = () => knowledgeAction(async () => {
+    if (!currentDraft || currentDraft.status !== "PUBLISHED") return;
+    const draft = await postJson("/api/knowledge/drafts/" + encodeURIComponent(currentDraft.id) + "/revisions",
+      { expectedVersion: currentDraft.version });
+    await refreshDrafts(draft.id);
+    $("knowledge-result").textContent = JSON.stringify(draft, null, 2);
+    $("knowledge-status").textContent = "新修订仍为草稿；旧发布版本继续生效，直到新版本审核发布。";
+  });
+  $("knowledge-audit").onclick = () => knowledgeAction(async () => {
+    if (!currentDraft) return;
+    $("knowledge-result").textContent = JSON.stringify(await api(
+      "/api/knowledge/drafts/" + encodeURIComponent(currentDraft.id) + "/audit"), null, 2);
+    $("knowledge-status").textContent = "已读取当前草稿的审核记录。";
+  });
+  $("knowledge-workbench").addEventListener("toggle", event => {
+    if (event.target.open && state.auth && !$("knowledge-draft-list").dataset.loaded) {
+      $("knowledge-draft-list").dataset.loaded = "true";
+      knowledgeAction(() => refreshDrafts(null));
+    }
+  });
   // Per-account acceptance records. Server versions prevent silent cross-tab overwrites.
   const requirementRows = new Map();
   let requirementsLoaded = false, requirementsLoading = false;

@@ -55,7 +55,7 @@ public class JdbcSemanticWorkbench implements Workbench {
     public List<KnowledgeHit> recall(String metric,String question) {
         if(metric==null || !metric.matches("[A-Z][A-Z0-9_]{0,31}") || question==null || question.length()>2000)
             throw new BusinessException("INVALID_REQUEST");
-        var hits=new ArrayList<>(db.query("SELECT id,layer_code,title,content,version FROM knowledge_document WHERE metric_code=? OR metric_code='*' ORDER BY layer_code,id LIMIT 32",
+        var hits=new ArrayList<>(db.query("SELECT id,layer_code,title,content,version FROM knowledge_document WHERE active=TRUE AND (metric_code=? OR metric_code='*') ORDER BY layer_code,id LIMIT 32",
             (r,n)->new KnowledgeHit(r.getString(1),r.getString(2),r.getString(3),r.getString(4),r.getString(5)),metric));
         model().metrics().stream().filter(m->m.code().equals(metric)).findFirst().ifPresent(m->hits.add(new KnowledgeHit("metric-"+metric,"L5_METRIC",m.name(),m.description(),"1")));
         hits.sort(Comparator.<KnowledgeHit>comparingInt(h->relevance(h,question)).reversed().thenComparing(KnowledgeHit::id));
